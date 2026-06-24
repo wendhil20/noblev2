@@ -1,0 +1,27 @@
+RewriteEngine On
+
+# Auto-detect: localhost uses /noble base, production uses /
+RewriteCond %{HTTP_HOST} ^(localhost|127\.0\.0\.1)
+RewriteRule ^ - [E=APP_BASE:/noblev2]
+
+RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)
+RewriteRule ^ - [E=APP_BASE:/]
+
+# Allow direct access to real files and folders
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Remove .php extension
+# e.g. /loginpage/profile → /loginpage/profile.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI}.php -f
+RewriteRule ^(.+?)/?$ $1.php [L]
+
+# Route everything else to index.php
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+
+# Custom 404 error page
+ErrorDocument 404 /noblev2/404.php

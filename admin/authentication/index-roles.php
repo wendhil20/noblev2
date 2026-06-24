@@ -1,0 +1,26 @@
+<?php
+// index-roles.php
+const ROLE_SUPERADMIN                   = 'SUPER ADMIN';
+const ROLE_IT                           = 'IT DEPARTMENT';
+const ROLE_ACCOUNTING                   = 'ACCOUNTING AND FINANCE DEPARTMENT';
+const ROLE_HR                           = 'HUMAN RESOURCES DEPARTMENT';
+const ROLE_OPERATIONS                   = 'OPERATIONS DEPARTMENT';
+const ROLE_SALES                        = 'SALES AND MARKETING DEPARTMENT';
+const ROLE_GRAPHIC                      = 'GRAPHIC DESIGN DEPARTMENT';
+const ROLE_DESIGNER                     = 'DESIGN DEPARTMENT';
+const ROLE_CUTTING                      = 'ORDER PROCESSING/CUTTING LIST DEPARTMENT';
+const ROLE_PRODUCTSPECIALIST            = 'PRODUCT SPECIALIST';
+const ROLE_LOGISTIC                     = 'LOGISTIC DEPARTMENT';
+const ROLE_WAREHOUSE                    = 'WAREHOUSE DEPARTMENT';
+
+const POSITION_HEAD                     = 'head';
+const POSITION_STAFF                    = 'staff';
+const POSITION_CUSTODIAN                = 'custodian';
+const POSITION_CUSTOASSISTANT           = 'custoassistant';
+const POSITION_WAREHOUSESTAFF           = 'warehousestaff';
+const POSITION_WAREHOUSERECEIVER        = 'warehousereceiver';
+const POSITION_LOGISTICSTAFF            = 'logisticstaff';
+const POSITION_LOGISTICDISPATCHER       = 'logisticdispatcher';
+const POSITION_PRODUCTSPECIALISTSTAFF   = 'productspecialiststaff';
+
+
