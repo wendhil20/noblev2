@@ -106,6 +106,12 @@ function isActive(string $path): string
                 Promotion
             </a>
 
+            <a href="<?= BASE_URL ?>/ps-promotionwebsite"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-promotionwebsite') ?>">
+                <i class="fa-solid fa-link w-4 text-center"></i>
+                Promotion Website
+            </a>
+
             <a href="<?= BASE_URL ?>/ps-category"
                 class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-category') ?>">
                 <i class="fa-solid fa-list w-4 text-center"></i>

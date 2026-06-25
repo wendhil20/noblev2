@@ -3,8 +3,6 @@
 
 include ROOT_PATH . '/network/connect.php';
 
-$uploadUrl = BASE_URL . '/uploads/';
-
 // Fetch active promotions (within date range)
 $promotions = [];
 $promoResult = $conn->query("
@@ -17,26 +15,6 @@ $promoResult = $conn->query("
 ");
 while ($row = $promoResult->fetch_assoc())
     $promotions[] = $row;
-
-// Fetch products with price range from variants
-$products = [];
-$result = $conn->query("
-    SELECT
-        p.id,
-        p.name,
-        p.imageproduct,
-        p.description,
-        p.category,
-        MIN(v.pricesize) AS min_price,
-        MAX(v.pricesize) AS max_price
-    FROM nobleproduct p
-    LEFT JOIN nobleproductcolor c ON c.product_id = p.id
-    LEFT JOIN nobleproductvariant v ON v.color_id = c.id
-    GROUP BY p.id
-    ORDER BY p.created_at DESC
-");
-while ($row = $result->fetch_assoc())
-    $products[] = $row;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,102 +108,13 @@ while ($row = $result->fetch_assoc())
             <?php include ROOT_PATH . '/user/ui-page/page-1/shop-by-department.php'; ?>
         </section>
 
-        <div class="mb-4 md:mb-8">
-            <h2 class="text-base md:text-2xl font-bold text-gray-900">
-              MOST POPULAR <span class="text-amber-500">ITEM</span>
-            </h2>
-        </div>
+        <section>
+            <?php include ROOT_PATH . '/user/ui-page/page-1/most-popularproduct.php'; ?>
+        </section>
 
-        <!-- Product Slider -->
-        <?php if (empty($products)): ?>
-            <div class="text-center py-20 text-gray-400">
-                <i class="fa-solid fa-box-open text-5xl mb-4 block"></i>
-                <p class="text-lg">No products available yet.</p>
-            </div>
-        <?php else: ?>
-
-            <div class="relative">
-
-                <!-- Left arrow -->
-                <button onclick="productSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
-                       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-                       flex items-center justify-center text-gray-600
-                       hover:bg-gray-50 transition-colors duration-200">
-                    <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </button>
-
-                <!-- Right arrow -->
-                <button onclick="productSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
-                       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-                       flex items-center justify-center text-gray-600
-                       hover:bg-gray-50 transition-colors duration-200">
-                    <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                </button>
-
-                <!-- Track -->
-                <div class="overflow-hidden px-1 p-2">
-                    <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
-                        id="productTrack">
-                        <?php foreach ($products as $p): ?>
-                            <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
-                              block hover:shadow-lg transition-shadow duration-300 shrink-0
-                              w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
-
-                                <!-- Image -->
-                                <div
-                                    class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
-                                    <?php if (!empty($p['imageproduct'])): ?>
-                                        <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
-                                            alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain">
-                                    <?php else: ?>
-                                        <div class="w-full h-full flex items-center justify-center text-gray-300">
-                                            <i class="fa-solid fa-image text-3xl md:text-5xl"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Info -->
-                                <div class="p-2 md:p-3">
-                                    <h3
-                                        class="font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
-                                        <?= htmlspecialchars($p['name']) ?>
-                                    </h3>
-
-                                    <?php if (!empty($p['description'])): ?>
-                                        <p class="text-xs text-gray-400 line-clamp-1 md:line-clamp-2 mb-1 md:mb-2 hidden sm:block">
-                                            <?= htmlspecialchars($p['description']) ?>
-                                        </p>
-                                    <?php endif; ?>
-
-                                    <!-- Price -->
-                                    <div class="mt-1 md:mt-2">
-                                        <?php
-                                        $min = floatval($p['min_price'] ?? 0);
-                                        $max = floatval($p['max_price'] ?? 0);
-                                        ?>
-                                        <?php if ($min > 0 || $max > 0): ?>
-                                            <span class="text-[10px] md:text-sm font-semibold text-gray-800">
-                                                ₱<?= number_format($min, 2) ?>
-                                                <?= $min !== $max ? ' – ₱' . number_format($max, 2) : '' ?>
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="text-[10px] md:text-xs text-gray-400 italic">Price not set</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
-        <?php endif; ?>
-
+        <section>
+            <?php include ROOT_PATH . '/user/ui-page/page-1/promotion-website.php'; ?>
+        </section>
 
         <section>
             <?php include ROOT_PATH . '/user/ui-page/page-1/discounted-products.php'; ?>
@@ -235,45 +124,61 @@ while ($row = $result->fetch_assoc())
             <?php include ROOT_PATH . '/user/ui-page/page-1/new-arrivals.php'; ?>
         </section>
 
-        <script>
-            (function () {
-                const track = document.getElementById('productTrack');
-                const cards = track.querySelectorAll('a');
-                let current = 0;
+        <section>
+            <div class="max-w-6xl mx-auto px-4 py-8 md:py-12">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 text-center">
 
-                function getVisible() {
-                    const w = window.innerWidth;
-                    if (w >= 1024) return 4;
-                    if (w >= 640) return 3;
-                    return 2;
-                }
+                    <!-- Quality Products -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-truck text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Quality products</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            All products are carefully inspected to ensure top-notch quality.
+                        </p>
+                    </div>
 
-                function getGap() {
-                    return window.innerWidth >= 768 ? 16 : 8; // gap-4 = 16px, gap-2 = 8px
-                }
+                    <!-- Support Services -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-headset text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Support Services</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Monday - Friday 8:00 AM - 5:00 PM · Saturday 8:00 AM - 12:00 PM
+                        </p>
+                    </div>
 
-                function go(idx) {
-                    const visible = getVisible();
-                    const max = Math.max(0, cards.length - visible);
-                    current = Math.min(Math.max(idx, 0), max);
+                    <!-- Secured Payment -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-dollar-sign text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Secured Payment</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Safe and encrypted payment options for your peace of mind.
+                        </p>
+                    </div>
 
-                    const cardW = cards[0].offsetWidth;
-                    const gap = getGap();
-                    track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
-                }
+                    <!-- Exclusive Deals -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-tag text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Exclusive Deals & Discounts</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Get special offers and discounts when you shop with us.
+                        </p>
+                    </div>
 
-                window.productSlide = (dir) => go(current + dir);
-
-                let startX = 0;
-                track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-                track.addEventListener('touchend', e => {
-                    const diff = startX - e.changedTouches[0].clientX;
-                    if (Math.abs(diff) > 40) productSlide(diff > 0 ? 1 : -1);
-                });
-
-                window.addEventListener('resize', () => go(current));
-            })();
-        </script>
+                </div>
+            </div>
+        </section>
 
     </div>
 

@@ -1,8 +1,5 @@
 <?php
 // handler/paymongo-webhook.php
-// Register this URL in PayMongo Dashboard → Webhooks
-// URL: https://yourdomain.com/paymongo-webhook
-// Events: payment.paid, checkout_session.payment.paid
 
 include ROOT_PATH . '/network/connect.php';
 
@@ -37,25 +34,25 @@ if ($type !== 'checkout_session.payment.paid') {
     exit('Ignored');
 }
 
-$metadata = $event['data']['attributes']['data']['attributes']['metadata'] ?? [];
-$userId   = intval($metadata['user_id'] ?? 0);
+$metadata        = $event['data']['attributes']['data']['attributes']['metadata'] ?? [];
+$userId          = intval($metadata['user_id'] ?? 0);
+$pendingOrderId  = intval($metadata['pending_order_id'] ?? 0);
 
-if (!$userId) {
+if (!$userId || !$pendingOrderId) {
     http_response_code(200);
-    exit('No user_id in metadata');
+    exit('Missing user_id or pending_order_id in metadata');
 }
 
-// ── Fetch pending order from DB temp table ────────────────────────────────────
-// (see step 3 below — we use a temp table instead of session for webhooks)
-$s = $conn->prepare("SELECT * FROM noblependingorder WHERE user_id = ? AND used = 0 ORDER BY created_at DESC LIMIT 1");
-$s->bind_param("i", $userId);
+// ── Fetch the EXACT pending order via metadata, not "latest unused" ──────────
+$s = $conn->prepare("SELECT * FROM noblependingorder WHERE id = ? AND user_id = ? AND used = 0 LIMIT 1");
+$s->bind_param("ii", $pendingOrderId, $userId);
 $s->execute();
 $pending = $s->get_result()->fetch_assoc();
 $s->close();
 
 if (!$pending) {
     http_response_code(200);
-    exit('No pending order found');
+    exit('No pending order found for id ' . $pendingOrderId);
 }
 
 $cartItems = json_decode($pending['cart_items_json'], true);
@@ -96,16 +93,17 @@ try {
            address_id, address_full, address_barangay, address_city, address_postalcode, address_lat, address_lng,
            delivery_method, truck_id, truck_name, truck_max_cubic_meter, truck_max_weight_capacity,
            delivery_distance_km, delivery_fee,
-           subtotal, vat_amount, grand_total, payment_status)
+           subtotal, vat_amount, grand_total, payment_status, payment_method)
         VALUES
-          (?,?,?,?,?,  ?,?,?,?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,?,?,  'paid')
+          (?,?,?,?,?,  ?,?,?,?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,?,?,  'paid', ?)
     ");
 
-    $truckMaxVol = floatval($pending['truck_max_vol'] ?? 0);
-    $truckMaxWt  = floatval($pending['truck_max_wt']  ?? 0);
+    $truckMaxVol  = floatval($pending['truck_max_vol'] ?? 0);
+    $truckMaxWt   = floatval($pending['truck_max_wt']  ?? 0);
+    $paymentMethod = $pending['payment_type'] ?? 'paymongo'; // ← carry over from the pending order's payment_type column
 
     $ins->bind_param(
-        "sisssissssddsisddddddd",
+        "sisssissssddsisddddddds",
         $nhccReference,
         $userId,
         $pending['contact_name'],
@@ -127,7 +125,8 @@ try {
         $pending['delivery_fee'],
         $pending['subtotal'],
         $pending['vat_amount'],
-        $pending['grand_total']
+        $pending['grand_total'],
+        $paymentMethod // ← bind the value to the existing payment_method column
     );
     $ins->execute();
     $orderId = $conn->insert_id;

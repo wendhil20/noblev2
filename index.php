@@ -75,6 +75,7 @@ $adminRoutes = [
     'ps-warehousebase',
     'ps-posupplier',
     'ps-supplierlink',
+    'ps-promotionwebsite',
     'ps-backend-insertproduct-handler',
     'ps-backend-category-helpers',
     'ps-backend-category-handler',
@@ -204,6 +205,7 @@ $routes = [
     // pages 1
     'home'                                  => 'user/ui-page/page-1/main.php',
 
+
     // pages 2
     'mainproductview'                       => 'user/ui-page/page-2/mainproductview.php',
     'cartadd'                               => 'user/ui-page/backend/backend-page-2/cart-add.php',
@@ -224,6 +226,8 @@ $routes = [
     'createcheckoutsession'                => 'user/ui-page/backend/backend-page-5/create-checkout-session.php',
     'webhook'                              => 'user/ui-page/webhook/paymongo.php',
     'checkoutcancel'                       => 'user/ui-page/backend/backend-page-5/checkout-cancel.php',
+    'checkqrph'                            => 'user/ui-page/backend/backend-page-5/check-qrph.php',
+    'createqrph'                           => 'user/ui-page/backend/backend-page-5/create-qrph.php',
 
     // pages 6
     'orders'                               => 'user/ui-page/page-6/orders.php',
@@ -264,6 +268,7 @@ $routes = [
     'ps-warehousebase'                      => 'admin/ui-productspecialist/page-4/tracklist-warehousebase.php',
     'ps-posupplier'                         => 'admin/ui-productspecialist/page-7/po-supplier.php',
     'ps-supplierlink'                       => 'admin/ui-productspecialist/page-7/po-supplier-products.php',
+    'ps-promotionwebsite'                   => 'admin/ui-productspecialist/page-8/promotion-website.php',
     'ps-backend-insertproduct-handler'      => 'admin/ui-productspecialist/backend/backend-page-2/specialist-insertproduct-handler.php',
     'ps-backend-category-helpers'           => 'admin/ui-productspecialist/backend/backend-page-2/specialist-insertproduct-helpers.php',
     'ps-backend-category-handler'           => 'admin/ui-productspecialist/backend/backend-page-2/specialist-category-handler.php',
@@ -371,7 +376,9 @@ $routes = [
     'fetchnotifications'                    => 'admin/navigation/fetch-notifications.php',
     'marknotificationread'                  => 'admin/navigation/mark-notification-read.php',
     'search-suggest'                        => 'user/navigation/search-suggest.php',
-
+    'cart-mini'                             => 'user/navigation/backend/backend-page-1/cart-mini.php',
+    'system-notifications'                  => 'user/navigation/system-notifications.php',
+    'submit-review'                         => 'user/navigation/backend/backend-page-2/submit-review.php',
 
 ];
 

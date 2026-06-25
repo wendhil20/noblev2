@@ -13,7 +13,7 @@ while ($row = $deptResult->fetch_assoc())
 ?>
 
 <?php if (!empty($departments)): ?>
-    <div class="py-2 md:py-6">
+    <div class="py-2 md:py-3">
 
         <!-- Heading with decorative lines -->
         <div class="flex items-center justify-center gap-4 mb-6 md:mb-10">

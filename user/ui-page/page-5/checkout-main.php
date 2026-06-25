@@ -20,8 +20,8 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
 
         <!-- ── Page header ── -->
         <div class="flex items-center gap-3 mb-8">
-            <a href="<?= BASE_URL ?>/cart"
-                class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-amber-500 transition">
+            <a href="javascript:void(0)" onclick="goBack()"
+                class="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-amber-500 transition cursor-pointer">
                 <i class="fa-solid fa-arrow-left text-xs"></i> Back to Cart
             </a>
             <span class="text-gray-200">|</span>
@@ -203,6 +203,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
         // ── Step state ────────────────────────────────────────────────────────
         let currentStep = 1;
         let chosenMethod = null; // 'pickup' | 'delivery'
+        let chosenPaymentMethod = null; // 'qrph' | 'paymongo'
 
         // ── Stepper nav ───────────────────────────────────────────────────────
         function nextStep(from) {
@@ -239,18 +240,15 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                 dot.className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ';
 
                 if (i < n) {
-                    // Done
                     dot.className += 'bg-green-500 text-white';
                     dot.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>';
                     label.className = label.className.replace(/text-\S+/g, '') + ' text-green-500 text-xs font-semibold';
                     if (line) line.className = line.className.replace('bg-gray-100', 'bg-green-300');
                 } else if (i === n) {
-                    // Active
                     dot.className += 'bg-amber-500 text-white';
                     dot.textContent = i;
                     label.className = label.className.replace(/text-\S+/g, '') + ' text-amber-500 text-xs font-semibold';
                 } else {
-                    // Pending
                     dot.className += 'bg-gray-100 text-gray-400';
                     dot.textContent = i;
                     label.className = label.className.replace(/text-\S+/g, '') + ' text-gray-400 text-xs font-medium';
@@ -321,7 +319,6 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
 
             toggleErr('err-addr', false);
 
-            // Re-calc delivery if already chosen
             if (chosenMethod === 'delivery') calcDelivery();
         }
 
@@ -359,7 +356,6 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                 deliveryNote.classList.remove('hidden');
             } else {
                 detailEl.classList.add('hidden');
-                // Reset summary to no delivery fee
                 summaryRow.style.display = 'none';
                 document.getElementById('summary-total').textContent = '₱' + fmtP(GRAND_TOTAL);
                 document.getElementById('delivery-badge').textContent = '₱0.00';
@@ -367,7 +363,6 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                 document.getElementById('delivery-subtitle-label').textContent = 'Calculated based on distance';
                 pickupNote.classList.remove('hidden');
                 deliveryNote.classList.add('hidden');
-                // Reset fee tracking for pickup
                 window._deliveryFee = 0;
                 window._distKm = 0;
             }
@@ -395,24 +390,20 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             const volPct = parseFloat(((window._cartVolCbm / volMax) * 100).toFixed(1));
             const wtPct = parseFloat(((window._cartWeightKg / wtMax) * 100).toFixed(1));
 
-            // Truck name
             const tName = ucFirst(truck.nametruck) + ' — ' + truck.trucktype;
             set('truck-name-display', tName);
             set('fare-title', tName + ' — Calculated');
 
-            // Volume bar
             set('vol-pct', volPct + '%');
             set('vol-used', window._cartVolCbm.toFixed(3));
             set('vol-max', volMax.toFixed(3));
             document.getElementById('vol-bar').style.width = Math.min(volPct, 100) + '%';
 
-            // Weight bar
             set('wt-pct', wtPct + '%');
             set('wt-used', window._cartWeightKg.toFixed(2));
             set('wt-max', wtMax.toFixed(2));
             document.getElementById('wt-bar').style.width = Math.min(wtPct, 100) + '%';
 
-            // Fare
             set('dist-display', distKm + ' km');
             set('time-display', estMin + ' minute' + (estMin !== 1 ? 's' : ''));
             set('base-fare-display', '₱' + fmtP(baseFare));
@@ -420,37 +411,31 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             set('add-fare-display', '₱' + fmtP(addFare));
             set('total-delivery-display', '₱' + fmtP(totalFare));
 
-            // Update delivery badge in method card
             document.getElementById('delivery-badge').textContent = '₱' + fmtP(totalFare);
             document.getElementById('delivery-badge').className = 'text-sm font-bold text-amber-500';
             document.getElementById('delivery-subtitle-label').textContent = distKm + ' km from store';
 
-            // Update order summary sidebar
             const summaryRow = document.getElementById('summary-delivery-row');
             summaryRow.style.removeProperty('display');
             set('summary-delivery-fee', '₱' + fmtP(totalFare));
             set('summary-total', '₱' + fmtP(GRAND_TOTAL + totalFare));
 
-            // Track for step 4 payload
             window._deliveryFee = totalFare;
             window._distKm = distKm;
         }
 
         // ── Populate step 4 review panel ──────────────────────────────────────
         function populateReview() {
-            // Contact
             set('review-name', document.getElementById('f-name').value.trim());
             set('review-email', document.getElementById('f-email').value.trim());
             set('review-phone', document.getElementById('f-phone').value.trim());
 
-            // Address
             const addrCard = document.querySelector('.addr-card.border-amber-400');
             if (addrCard) {
                 const lines = addrCard.querySelectorAll('p');
                 set('review-address', lines[0]?.textContent?.trim() ?? '—');
             }
 
-            // Delivery method
             const fee = window._deliveryFee ?? 0;
             if (chosenMethod === 'pickup') {
                 set('review-method', 'Store Pickup');
@@ -460,7 +445,6 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                 set('review-delivery-fee', '₱' + fmtP(fee) + ' (' + (window._distKm ?? 0) + ' km)');
             }
 
-            // Amounts
             set('pay-subtotal', fmtP(SUBTOTAL));
             set('pay-vat', fmtP(VAT_AMOUNT));
             set('pay-total', fmtP(GRAND_TOTAL + fee));
@@ -474,14 +458,55 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             }
         }
 
-        // ── Start payment — POST to handler then redirect to PayMongo ─────────
+        // ── Select payment method (QR Ph or Cards/Wallets) ────────────────────
+        function selectPaymentMethod(method) {
+            chosenPaymentMethod = method;
+            toggleErr('err-pay-method', false);
+
+            document.querySelectorAll('.pay-method-card').forEach(c => {
+                c.classList.remove('border-amber-400', 'bg-amber-50', 'border-blue-400', 'bg-blue-50');
+                c.classList.add('border-gray-100');
+            });
+
+            const note = document.getElementById('pay-secure-note');
+            const redirectNote = document.getElementById('redirect-note');
+            const redirectAction = document.getElementById('redirect-note-action');
+            redirectNote.classList.remove('hidden');
+
+            if (method === 'qrph') {
+                const card = document.getElementById('pm-qrph');
+                card.classList.add('border-blue-400', 'bg-blue-50');
+                card.classList.remove('border-gray-100');
+
+                redirectAction.textContent = 'scan and pay via QR Ph';
+                note.innerHTML = '<i class="fa-solid fa-shield-halved mr-1"></i>'
+                    + 'QR Ph via <span class="font-semibold">InstaPay</span> — BSP-regulated, instant settlement';
+            } else {
+                const card = document.getElementById('pm-paymongo');
+                card.classList.add('border-amber-400', 'bg-amber-50');
+                card.classList.remove('border-gray-100');
+
+                redirectAction.textContent = 'complete your payment';
+                note.innerHTML = '<i class="fa-solid fa-shield-halved mr-1"></i>'
+                    + 'Secured by <span class="font-semibold">PayMongo</span> — GCash, Maya, Cards accepted';
+            }
+        }
+
+        // ── Start payment — POST to the right handler then redirect to PayMongo ───
         async function startPayment() {
+            if (!chosenPaymentMethod) {
+                toggleErr('err-pay-method', true);
+                return;
+            }
 
             const btn = document.getElementById('pay-btn');
             const label = document.getElementById('pay-btn-label');
+            document.getElementById('err-payment').classList.add('hidden');
 
             btn.disabled = true;
-            label.textContent = 'Creating session…';
+            label.textContent = 'Redirecting…';
+
+            const endpoint = chosenPaymentMethod === 'qrph' ? '/createqrph' : '/createcheckoutsession';
 
             const payload = {
                 contact_name: document.getElementById('f-name').value.trim(),
@@ -495,7 +520,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             };
 
             try {
-                const res = await fetch(BASE_URL + '/createcheckoutsession', {
+                const res = await fetch(BASE_URL + endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
@@ -506,7 +531,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                     window.location.href = data.checkout_url;
                 } else {
                     const errEl = document.getElementById('err-payment');
-                    errEl.textContent = '⚠ ' + (data.error ?? 'Something went wrong. Please try again.');
+                    document.getElementById('err-payment-msg').textContent = data.error ?? 'Something went wrong. Please try again.';
                     errEl.classList.remove('hidden');
                     btn.disabled = false;
                     label.textContent = 'Pay Now';
@@ -542,8 +567,15 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
         function ucFirst(s) {
             return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
         }
-    </script>
 
+        function goBack() {
+            if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.hostname)) {
+                window.history.back();
+            } else {
+                window.location.href = '<?= BASE_URL ?>/cart';
+            }
+        }
+    </script>
 </body>
 
 </html>

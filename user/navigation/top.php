@@ -41,7 +41,7 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                 <form action="<?= BASE_URL ?>/shop" method="GET" class="hidden lg:block relative"
                     id="desktop-search-form">
                     <div
-                        class="flex items-center border border-gray-300 rounded-md overflow-hidden focus-within:ring-1 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all duration-150">
+                        class="flex items-center p-1 rounded-lg border overflow-hidden focus-within:ring-1 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all duration-150">
                         <div class="flex items-center pl-3 text-gray-400">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <circle cx="11" cy="11" r="8" />
@@ -52,7 +52,7 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                             placeholder="Search for products..."
                             class="text-sm text-gray-700 placeholder-gray-400 px-3 py-2 w-52 outline-none bg-white" />
                         <button type="submit"
-                            class="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150 whitespace-nowrap">
+                            class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150 whitespace-nowrap rounded-lg">
                             Search
                         </button>
                     </div>
@@ -61,6 +61,13 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                     <div id="desktop-search-suggestions"
                         class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
                     </div>
+
+                   <div id="desktop-search-error" class="hidden absolute -bottom-9 left-3 z-50">
+    <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+        Please fill in the blank.
+        <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+    </div>
+</div>
                 </form>
 
                 <!-- Icon: Search (mobile only) -->
@@ -72,11 +79,20 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                     </svg>
                 </button>
 
-                <!-- Cart Icon -->
-                <a href="<?= BASE_URL ?>/cartview"
-                    class="relative p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150">
-                    <i class="fa-solid fa-cart-flatbed"></i>
-                </a>
+                <!-- Cart Icon with Hover Dropdown -->
+                <div class="relative group" id="cart-icon-wrapper">
+                    <a href="<?= BASE_URL ?>/cartview"
+                        class="relative p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150 block">
+                        <i class="fa-solid fa-cart-flatbed"></i>
+                        <span id="cart-count"
+                            class="hidden absolute -top-0.5 -right-0.5 bg-orange-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        </span>
+                    </a>
+
+                    <?php if ($isLoggedIn): ?>
+                        <?php include ROOT_PATH . '/user/navigation/cart-dropdown.php'; ?>
+                    <?php endif; ?>
+                </div>
 
                 <!-- User Avatar / Login Button -->
                 <?php if ($isLoggedIn): ?>
@@ -112,41 +128,23 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                             <div class="py-1">
                                 <a href="<?= BASE_URL ?>/profile"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M5.121 17.804A9 9 0 1119 12a9 9 0 01-13.879 5.804zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
+                                    <i class="fa-sharp fa-solid fa-id-badge w-4 text-center"></i>
                                     My Profile
                                 </a>
                                 <a href="<?= BASE_URL ?>/orders"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                    </svg>
+                                    <i class="fa-sharp fa-solid fa-cart-arrow-down w-4 text-center"></i>
                                     My Orders
                                 </a>
                                 <a href="<?= BASE_URL ?>/saved"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
-                                    </svg>
+                                    <i class="fa-sharp fa-solid fa-bookmark w-4 text-center"></i>
                                     Saved Items
                                 </a>
-                                <a href="<?= BASE_URL ?>/settings"
+                                <a href="<?= BASE_URL ?>/system-notifications"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                                        viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    Settings
+                                    <i class="fa-sharp fa-solid fa-message w-4 text-center"></i>
+                                    System Notifications
                                 </a>
                             </div>
                             <div class="border-t border-gray-100 py-1">
@@ -215,6 +213,13 @@ $isLoggedIn = !empty($_SESSION['user_id']);
             <div id="mobile-search-suggestions"
                 class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
             </div>
+
+           <div id="mobile-search-error" class="hidden absolute -bottom-9 left-3 z-50">
+    <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+        Please fill in the blank.
+        <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+    </div>
+</div>
         </div>
     </div>
 </nav>
@@ -610,4 +615,51 @@ $isLoggedIn = !empty($_SESSION['user_id']);
             document.getElementById('mobile-search-suggestions')
         );
     })();
+
+document.getElementById('desktop-search-form').addEventListener('submit', function (e) {
+    const input = document.getElementById('desktop-search-input');
+    const tooltip = document.getElementById('desktop-search-error');
+    if (input.value.trim() === '') {
+        e.preventDefault();
+        tooltip.classList.remove('hidden');
+        input.focus();
+    } else {
+        tooltip.classList.add('hidden');
+    }
+});
+
+document.getElementById('desktop-search-input').addEventListener('input', function () {
+    document.getElementById('desktop-search-error').classList.add('hidden');
+});
+
+document.querySelector('#mobile-search-bar button').addEventListener('click', function (e) {
+    const input = document.getElementById('mobile-search-input');
+    const tooltip = document.getElementById('mobile-search-error');
+    if (input.value.trim() === '') {
+        tooltip.classList.remove('hidden');
+        input.focus();
+        return;
+    }
+    tooltip.classList.add('hidden');
+    window.location.href = `<?= BASE_URL ?>/shop?search=${encodeURIComponent(input.value.trim())}`;
+});
+
+document.getElementById('mobile-search-input').addEventListener('input', function () {
+    document.getElementById('mobile-search-error').classList.add('hidden');
+});
+
+// Bagong dagdag: mawala ang tooltip pag click sa labas
+document.addEventListener('click', function (e) {
+    const desktopInput = document.getElementById('desktop-search-input');
+    const desktopTooltip = document.getElementById('desktop-search-error');
+    if (desktopTooltip && !desktopInput.contains(e.target) && e.target !== desktopInput) {
+        desktopTooltip.classList.add('hidden');
+    }
+
+    const mobileInput = document.getElementById('mobile-search-input');
+    const mobileTooltip = document.getElementById('mobile-search-error');
+    if (mobileTooltip && !mobileInput.contains(e.target) && e.target !== mobileInput) {
+        mobileTooltip.classList.add('hidden');
+    }
+});
 </script>

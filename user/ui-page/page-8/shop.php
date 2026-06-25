@@ -274,7 +274,7 @@ $MAX_SWATCHES = 4; // max color chips shown directly on the card before "+N"
                     <!-- Sale Only toggle -->
                     <div class="mb-5 pb-5 border-b border-gray-100">
                         <label class="flex items-center justify-between cursor-pointer">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sale Items Only</span>
+                            <span class="text-xs font-semibold text-red-500 uppercase tracking-wider">Sale Items Only</span>
                             <div class="relative">
                                 <input type="checkbox" name="sale_only" value="1"
                                     <?= $saleOnly ? 'checked' : '' ?>

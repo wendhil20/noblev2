@@ -14,10 +14,17 @@ $discResult = $conn->query("
         MAX(v.pricesize) AS max_price,
         MAX(v.discountvariant) AS max_discount,
         MIN(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS min_discounted_price,
-        MAX(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS max_discounted_price
+        MAX(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS max_discounted_price,
+        rv.avg_rating,
+        rv.review_count
     FROM nobleproduct p
     INNER JOIN nobleproductcolor c ON c.product_id = p.id
     INNER JOIN nobleproductvariant v ON v.color_id = c.id
+    LEFT JOIN (
+        SELECT product_id, AVG(rating) AS avg_rating, COUNT(*) AS review_count
+        FROM noblereview
+        GROUP BY product_id
+    ) rv ON rv.product_id = p.id
     WHERE v.discountvariant > 0
     GROUP BY p.id
     ORDER BY max_discount DESC
@@ -28,8 +35,8 @@ while ($row = $discResult->fetch_assoc())
 
 <?php if (!empty($discountedProducts)): ?>
     <div class="mb-4 md:mb-8 mt-8">
-        <h2 class="text-base md:text-2xl font-bold text-gray-900">
-            <span class="text-red-500">DISCOUNTED</span> ITEMS
+        <h2 class="text-xs md:text-lg font-bold text-gray-900">
+            DISCOUNTED<span class="text-amber-500"> ITEMS</span>
         </h2>
     </div>
 
@@ -59,7 +66,7 @@ while ($row = $discResult->fetch_assoc())
         <div class="overflow-hidden px-1 p-2">
             <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]" id="discountTrack">
                 <?php foreach ($discountedProducts as $p): ?>
-                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
+                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative
                       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
@@ -90,6 +97,19 @@ while ($row = $discResult->fetch_assoc())
                                 <p class="text-xs text-gray-400 line-clamp-1 md:line-clamp-2 mb-1 md:mb-2 hidden sm:block">
                                     <?= htmlspecialchars($p['description']) ?>
                                 </p>
+                            <?php endif; ?>
+
+                            <!-- Rating -->
+                            <?php if (!empty($p['review_count']) && $p['review_count'] > 0): ?>
+                                <div class="flex items-center gap-1 mb-1">
+                                    <i class="fa-solid fa-star text-amber-400 text-[10px] md:text-xs"></i>
+                                    <span class="text-[10px] md:text-xs font-semibold text-gray-700">
+                                        <?= number_format($p['avg_rating'], 1) ?>
+                                    </span>
+                                    <span class="text-[9px] md:text-xs text-gray-400">
+                                        (<?= (int) $p['review_count'] ?>)
+                                    </span>
+                                </div>
                             <?php endif; ?>
 
                             <!-- Price: original (strikethrough) + discounted -->

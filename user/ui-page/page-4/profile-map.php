@@ -126,13 +126,7 @@ include ROOT_PATH . '/network/connect.php';
                     placeholder="Search address, landmark, barangay…"></mapbox-search-box>
 
                 <div id="map"></div>
-                <p class="text-xs text-gray-400 mt-2">📍 Drag the pin to fine-tune your exact location.</p>
-
-                <div id="coords-preview"
-                    class="hidden mt-3 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700 flex gap-4">
-                    <span>Lat: <strong id="lat-preview">—</strong></span>
-                    <span>Lng: <strong id="lng-preview">—</strong></span>
-                </div>
+                <p class="text-xs text-gray-400 mt-2"> Drag the pin to fine-tune your exact location.</p>
 
                 <div class="flex justify-end mt-5">
                     <button onclick="goToStep2()"
@@ -361,11 +355,6 @@ include ROOT_PATH . '/network/connect.php';
             // Hidden coords
             document.getElementById('latitude').value = '';
             document.getElementById('longitude').value = '';
-
-            // Coords preview
-            document.getElementById('coords-preview').classList.add('hidden');
-            document.getElementById('lat-preview').textContent = '—';
-            document.getElementById('lng-preview').textContent = '—';
 
             // Selects
             document.getElementById('region').value = '';
