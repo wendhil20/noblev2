@@ -35,21 +35,21 @@ while ($row = $promoResult->fetch_assoc())
         <?php if (!empty($promotions)): ?>
             <div class="mb-6 md:mb-10">
 
-                <div class="relative w-full rounded-lg overflow-hidden shadow-sm aspect-[16/5]"
-                    id="promoSlider">
+                <div class="relative w-full rounded-lg overflow-hidden" id="promoSlider">
 
                     <!-- Slides container -->
-                    <div class="flex h-full w-full" id="promoTrack">
-                        <?php foreach ($promotions as $promo): ?>
-                            <div class="relative shrink-0 w-full h-full">
+                    <div class="flex w-full" id="promoTrack">
+                        <?php foreach ($promotions as $i => $promo): ?>
+                            <div class="relative shrink-0 w-full">
                                 <?php if ($promo['banner_image']): ?>
                                     <img src="<?= BASE_URL ?>/uploads/promotions/<?= htmlspecialchars($promo['banner_image']) ?>"
-                                        alt="<?= htmlspecialchars($promo['title']) ?>" class="w-full h-full object-contain">
+                                        alt="<?= htmlspecialchars($promo['title']) ?>" data-slide-img="<?= $i ?>"
+                                        class="w-full h-auto block">
                                 <?php endif; ?>
                                 <!-- Gradient overlay + text -->
-                                <div class="absolute inset-0 flex flex-col justify-end
-                                bg-gradient-to-t from-black/10 via-black/20 to-transparent
-                                px-4 md:px-14 pb-3 md:pb-8">
+                                <div class="absolute bottom-0 left-0 right-0 flex flex-col justify-end
+bg-gradient-to-t from-black/40 via-black/15 to-transparent
+px-4 md:px-14 pb-3 md:pb-8 pt-10 md:pt-20">
                                     <p
                                         class="text-white font-bold text-[11px] md:text-3xl leading-snug drop-shadow-lg line-clamp-1">
                                         <?= htmlspecialchars($promo['title']) ?>
@@ -68,9 +68,9 @@ while ($row = $promoResult->fetch_assoc())
                     <?php if (count($promotions) > 1): ?>
                         <!-- Prev -->
                         <button onclick="sliderMove(-1)" class="absolute left-1.5 md:left-3 top-1/2 -translate-y-1/2 z-10
-                           w-5 h-5 md:w-9 md:h-9 rounded-full bg-black/30 hover:bg-black/60
-                           flex items-center justify-center text-white
-                           backdrop-blur-sm transition-colors duration-200">
+                   w-5 h-5 md:w-9 md:h-9 rounded-full bg-black/30 hover:bg-black/60
+                   flex items-center justify-center text-white
+                   backdrop-blur-sm transition-colors duration-200">
                             <svg class="w-2.5 h-2.5 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -79,9 +79,9 @@ while ($row = $promoResult->fetch_assoc())
 
                         <!-- Next -->
                         <button onclick="sliderMove(1)" class="absolute right-1.5 md:right-3 top-1/2 -translate-y-1/2 z-10
-                           w-5 h-5 md:w-9 md:h-9 rounded-full bg-black/30 hover:bg-black/60
-                           flex items-center justify-center text-white
-                           backdrop-blur-sm transition-colors duration-200">
+                   w-5 h-5 md:w-9 md:h-9 rounded-full bg-black/30 hover:bg-black/60
+                   flex items-center justify-center text-white
+                   backdrop-blur-sm transition-colors duration-200">
                             <svg class="w-2.5 h-2.5 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5"
                                 viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -92,7 +92,7 @@ while ($row = $promoResult->fetch_assoc())
                         <div class="absolute bottom-1.5 md:bottom-3 left-1/2 -translate-x-1/2 flex gap-1 md:gap-2 z-10">
                             <?php foreach ($promotions as $i => $_): ?>
                                 <button onclick="sliderGo(<?= $i ?>)" data-dot="<?= $i ?>" class="w-1 h-1 md:w-2 md:h-2 rounded-full transition-all duration-300
-                                   <?= $i === 0 ? 'bg-white scale-125' : 'bg-white/50' ?>">
+                           <?= $i === 0 ? 'bg-white scale-125' : 'bg-white/50' ?>">
                                 </button>
                             <?php endforeach; ?>
                         </div>
@@ -188,10 +188,26 @@ while ($row = $promoResult->fetch_assoc())
                 let current = 0;
                 const total = <?= count($promotions) ?>;
                 const track = document.getElementById('promoTrack');
+                const slider = document.getElementById('promoSlider');
                 const dots = document.querySelectorAll('[data-dot]');
-                const desc = document.getElementById('promoDesc');
-                const descriptions = <?= json_encode(array_column($promotions, 'description')) ?>;
+                const images = document.querySelectorAll('[data-slide-img]');
                 let timer = null;
+
+                function setHeightToCurrentImage() {
+                    const img = images[current];
+                    if (!img) return;
+
+                    const applyHeight = () => {
+                        const ratio = img.naturalHeight / img.naturalWidth;
+                        slider.style.height = (slider.offsetWidth * ratio) + 'px';
+                    };
+
+                    if (img.complete && img.naturalWidth) {
+                        applyHeight();
+                    } else {
+                        img.addEventListener('load', applyHeight, { once: true });
+                    }
+                }
 
                 function go(idx) {
                     current = (idx + total) % total;
@@ -204,14 +220,7 @@ while ($row = $promoResult->fetch_assoc())
                         d.classList.toggle('bg-white/50', i !== current);
                     });
 
-                    // update description
-                    if (desc) {
-                        desc.style.opacity = '0';
-                        setTimeout(() => {
-                            desc.textContent = descriptions[current] || '';
-                            desc.style.opacity = '1';
-                        }, 200);
-                    }
+                    setHeightToCurrentImage();
                 }
 
                 function startAuto() { timer = setInterval(() => go(current + 1), 4500); }
@@ -220,9 +229,12 @@ while ($row = $promoResult->fetch_assoc())
                 window.sliderMove = (dir) => { go(current + dir); resetAuto(); };
                 window.sliderGo = (idx) => { go(idx); resetAuto(); };
 
+                // initial height set
+                setHeightToCurrentImage();
+                window.addEventListener('resize', setHeightToCurrentImage);
+
                 startAuto();
 
-                const slider = document.getElementById('promoSlider');
                 let startX = 0;
                 slider.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
                 slider.addEventListener('touchend', e => {
