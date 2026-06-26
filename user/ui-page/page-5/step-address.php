@@ -20,7 +20,7 @@
                 <div class="py-10 text-center">
                     <i class="fa-solid fa-location-dot text-3xl text-gray-200 mb-3 block"></i>
                     <p class="text-sm text-gray-400 mb-4">No saved addresses yet.</p>
-                    <a href="<?= BASE_URL ?>/profile/address/add"
+                    <a href="<?= BASE_URL ?>/profilemap"
                         class="inline-block px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold transition">
                         Add an address
                     </a>

@@ -30,7 +30,7 @@ while ($row = $deptResult->fetch_assoc())
                 <a href="<?= BASE_URL ?>/productcategory?id=<?= $dept['id'] ?>"
                    class="flex flex-col items-center gap-2 w-20 md:w-28 group">
 
-                    <div class="w-16 h-16 md:w-24 md:h-24 rounded-full border-2 border-amber-400
+                    <div class="w-16 h-16 md:w-24 md:h-24 rounded-full
                                 flex items-center justify-center overflow-hidden bg-white
                                 group-hover:border-amber-500 group-hover:shadow-md transition-all duration-200 p-2 md:p-3">
                         <?php if (!empty($dept['image'])): ?>

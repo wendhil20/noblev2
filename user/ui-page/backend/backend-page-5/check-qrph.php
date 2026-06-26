@@ -1,16 +1,6 @@
 <?php
 // handler/check-qrph.php
 // Polled by the frontend every 5 s to check whether a QR Ph payment was received.
-//
-// Static QR Ph has no per-transaction PayMongo ID to poll directly.
-// Confirmation comes via PayMongo webhook (payment.paid) → your webhook handler
-// marks noblependingorder.payment_status = 'paid' and sets final_order_id.
-//
-// This endpoint simply checks that DB column and returns the result.
-//
-// GET params:
-//   source_id  — the marker stored in paymongo_session_id (qrph_pending_{id})
-//   order_id   — noblependingorder.id
 
 header('Content-Type: application/json');
 

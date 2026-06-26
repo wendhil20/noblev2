@@ -572,7 +572,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.hostname)) {
                 window.history.back();
             } else {
-                window.location.href = '<?= BASE_URL ?>/cart';
+                window.location.href = '<?= BASE_URL ?>/';
             }
         }
     </script>
