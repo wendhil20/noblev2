@@ -241,10 +241,11 @@ $routes = [
     'order-tracking-poll'                  => 'user/ui-page/backend/backend-page-6/order-tracking-poll.php',
 
     // page 7
-    'productcategory' => 'user/ui-page/page-7/categoryfield.php',
+    'productcategory'                       => 'user/ui-page/page-7/categoryfield.php',
 
     // page 8
-    'shop' => 'user/ui-page/page-8/shop.php',
+    'shop'                                  => 'user/ui-page/page-8/shop.php',
+    'shop-products'                          => 'user/ui-page/backend/backend-page-8/shop-products.php',
     
 
     //admin

@@ -28,10 +28,13 @@ while ($row = $result->fetch_assoc())
     $products[] = $row;
 ?>
 
-<div class="mb-4 md:mb-8">
-    <h2 class="text-sm md:text-xl font-bold text-gray-900">
-        MOST <span class="text-amber-500">POPULAR ITEM</span>
-    </h2>
+<div class="mb-4 md:mb-8 mt-5">
+    <div class="flex items-center gap-4">
+        <h2 class="text-sm md:text-xl font-bold text-gray-900 whitespace-nowrap">
+            MOST <span class="text-amber-500">POPULAR ITEM</span>
+        </h2>
+        <span class="h-px flex-1 max-w-[120px] md:max-w-[220px] bg-gradient-to-r from-amber-300 to-transparent"></span>
+    </div>
 </div>
 
 <!-- Product Slider -->

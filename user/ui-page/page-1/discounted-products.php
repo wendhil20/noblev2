@@ -35,9 +35,12 @@ while ($row = $discResult->fetch_assoc())
 
 <?php if (!empty($discountedProducts)): ?>
     <div class="mb-4 md:mb-8 mt-8">
-        <h2 class="text-xs md:text-lg font-bold text-gray-900">
-            DISCOUNTED<span class="text-amber-500"> ITEMS</span>
-        </h2>
+        <div class="flex items-center gap-4">
+            <h2 class="text-xs md:text-lg font-bold text-gray-900 whitespace-nowrap">
+                DISCOUNTED<span class="text-amber-500"> ITEMS</span>
+            </h2>
+           <span class="h-px w-16 md:w-32 bg-gradient-to-r from-amber-300 to-transparent"></span>
+        </div>
     </div>
 
     <div class="relative">
@@ -64,14 +67,16 @@ while ($row = $discResult->fetch_assoc())
 
         <!-- Track -->
         <div class="overflow-hidden px-1 p-2">
-            <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]" id="discountTrack">
+            <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
+                id="discountTrack">
                 <?php foreach ($discountedProducts as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative
                       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
                         <!-- Discount badge -->
-                        <span class="absolute top-2 left-2 z-10 bg-red-500 text-white text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded-md shadow">
+                        <span
+                            class="absolute top-2 left-2 z-10 bg-red-500 text-white text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded-md shadow">
                             -<?= rtrim(rtrim(number_format($p['max_discount'], 2), '0'), '.') ?>%
                         </span>
 
@@ -89,7 +94,8 @@ while ($row = $discResult->fetch_assoc())
 
                         <!-- Info -->
                         <div class="p-2 md:p-3">
-                            <h3 class="font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
+                            <h3
+                                class="font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
                                 <?= htmlspecialchars($p['name']) ?>
                             </h3>
 
