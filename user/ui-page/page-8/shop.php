@@ -23,6 +23,10 @@ $selectedCategoriesLower = array_map('mb_strtolower', $selectedCategories);
 $selectedColorsLower = array_map('mb_strtolower', $selectedColors);
 $selectedSizesLower = array_map('mb_strtolower', $selectedSizes);
 
+$perPage = 8;
+$page = max(1, intval($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
 // ── 2. Fetch available filter options ───────────────────────────────────────
 
 // Categories (case-insensitive dedupe, pulled directly from nobleproduct.category)
@@ -130,7 +134,33 @@ if ($saleOnly) {
     )";
 }
 
+// IMPORTANT: $whereSql must be built BEFORE it's used in the count query below.
 $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+
+// ── Count total matching products (for pagination) ─────────────────────────
+$countSql = "
+    SELECT COUNT(*) AS total FROM (
+        SELECT p.id
+        FROM nobleproduct p
+        INNER JOIN nobleproductcolor c ON c.product_id = p.id
+        INNER JOIN nobleproductvariant v ON v.color_id = c.id
+        $whereSql
+        GROUP BY p.id
+    ) AS t
+";
+$countStmt = $conn->prepare($countSql);
+if (!empty($params)) {
+    $countStmt->bind_param($types, ...$params);
+}
+$countStmt->execute();
+$totalProducts = $countStmt->get_result()->fetch_assoc()['total'] ?? 0;
+$countStmt->close();
+
+$totalPages = max(1, (int) ceil($totalProducts / $perPage));
+if ($page > $totalPages) {
+    $page = $totalPages;
+}
+$offset = ($page - 1) * $perPage; // recompute in case page was clamped
 
 $sql = "
     SELECT
@@ -143,14 +173,19 @@ $sql = "
     $whereSql
     GROUP BY p.id
     ORDER BY p.created_at DESC
+    LIMIT ? OFFSET ?
 ";
+
+$pagedParams = $params;
+$pagedTypes = $types . 'ii';
+$pagedParams[] = $perPage;
+$pagedParams[] = $offset;
 
 $products = [];
 $stmt = $conn->prepare($sql);
-if (!empty($params)) {
-    $stmt->bind_param($types, ...$params);
-}
+$stmt->bind_param($pagedTypes, ...$pagedParams);
 $stmt->execute();
+
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc())
     $products[] = $row;
@@ -234,6 +269,13 @@ foreach ($products as $p) {
 }
 
 $MAX_SWATCHES = 4; // max color chips shown directly on the card before "+N"
+
+// Helper used by pagination links — keeps all current filters in the query string
+function buildPageUrl(array $baseParams, int $pageNum): string
+{
+    $baseParams['page'] = $pageNum;
+    return BASE_URL . '/shop?' . http_build_query($baseParams);
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -274,14 +316,17 @@ $MAX_SWATCHES = 4; // max color chips shown directly on the card before "+N"
                     <!-- Sale Only toggle -->
                     <div class="mb-5 pb-5 border-b border-gray-100">
                         <label class="flex items-center justify-between cursor-pointer">
-                            <span class="text-xs font-semibold text-red-500 uppercase tracking-wider">Sale Items Only</span>
+                            <span class="text-xs font-semibold text-red-500 uppercase tracking-wider">Sale Items
+                                Only</span>
                             <div class="relative">
-                                <input type="checkbox" name="sale_only" value="1"
-                                    <?= $saleOnly ? 'checked' : '' ?>
-                                    class="sr-only peer"
-                                    onchange="document.getElementById('filterForm').submit()">
-                                <div class="w-10 h-5 bg-gray-200 rounded-full peer-checked:bg-amber-500 transition-colors duration-200"></div>
-                                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5"></div>
+                                <input type="checkbox" name="sale_only" value="1" <?= $saleOnly ? 'checked' : '' ?>
+                                    class="sr-only peer" onchange="document.getElementById('filterForm').submit()">
+                                <div
+                                    class="w-10 h-5 bg-gray-200 rounded-full peer-checked:bg-amber-500 transition-colors duration-200">
+                                </div>
+                                <div
+                                    class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-5">
+                                </div>
                             </div>
                         </label>
                     </div>
@@ -377,8 +422,8 @@ $MAX_SWATCHES = 4; // max color chips shown directly on the card before "+N"
                                 class="font-semibold text-gray-600"><?= htmlspecialchars($searchQuery) ?></span>"
                         </p>
                     <?php endif; ?>
-                    <span class="text-xs text-gray-400"><?= count($products) ?>
-                        product<?= count($products) !== 1 ? 's' : '' ?> found</span>
+                    <span class="text-xs text-gray-400"><?= $totalProducts ?>
+                        product<?= $totalProducts != 1 ? 's' : '' ?> found</span>
                 </div>
 
                 <?php if (empty($products)): ?>
@@ -502,6 +547,47 @@ $MAX_SWATCHES = 4; // max color chips shown directly on the card before "+N"
                 <?php endif; ?>
 
             </div>
+
+            <!-- Pagination -->
+            <?php if ($totalPages > 1): ?>
+                <?php
+                $baseParams = $_GET;
+                function buildPageUrl($baseParams, $pageNum)
+                {
+                    $baseParams['page'] = $pageNum;
+                    return BASE_URL . '/shop?' . http_build_query($baseParams);
+                }
+                ?>
+                <div class="flex items-center justify-center gap-1.5 mt-8">
+
+                    <!-- Prev -->
+                    <a href="<?= $page > 1 ? buildPageUrl($baseParams, $page - 1) : '#' ?>" class="w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
+                                      <?= $page > 1
+                                          ? 'border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300'
+                                          : 'border-gray-100 text-gray-300 cursor-not-allowed pointer-events-none' ?>">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+
+                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                        <a href="<?= buildPageUrl($baseParams, $i) ?>"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition
+                                          <?= $i === $page
+                                              ? 'bg-amber-500 text-white'
+                                              : 'border border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300' ?>">
+                            <?= $i ?>
+                        </a>
+                    <?php endfor; ?>
+
+                    <!-- Next -->
+                    <a href="<?= $page < $totalPages ? buildPageUrl($baseParams, $page + 1) : '#' ?>" class="w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
+                                      <?= $page < $totalPages
+                                          ? 'border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300'
+                                          : 'border-gray-100 text-gray-300 cursor-not-allowed pointer-events-none' ?>">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+                </div>
+            <?php endif; ?>
+
         </div>
 
     </div>
