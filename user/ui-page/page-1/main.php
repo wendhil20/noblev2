@@ -27,7 +27,7 @@ while ($row = $promoResult->fetch_assoc())
     <?php include ROOT_PATH . '/user/navigation/top.php'; ?>
 </head>
 
-<body class="bg-gray-50">
+<body class="">
 
     <div class="max-w-7xl mx-auto px-6 py-5">
 
@@ -35,7 +35,7 @@ while ($row = $promoResult->fetch_assoc())
         <?php if (!empty($promotions)): ?>
             <div class="mb-6 md:mb-10">
 
-                <div class="relative w-full rounded-lg overflow-hidden shadow-sm bg-slate-800 aspect-[16/5]"
+                <div class="relative w-full rounded-lg overflow-hidden shadow-sm  aspect-[16/5]"
                     id="promoSlider">
 
                     <!-- Slides container -->
