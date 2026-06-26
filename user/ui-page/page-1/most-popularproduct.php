@@ -45,7 +45,7 @@ while ($row = $result->fetch_assoc())
     <div class="relative">
 
         <!-- Left arrow -->
-        <button onclick="productSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
+        <button id="productPrev" onclick="productSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
                flex items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
@@ -55,7 +55,7 @@ while ($row = $result->fetch_assoc())
         </button>
 
         <!-- Right arrow -->
-        <button onclick="productSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
+        <button id="productNext" onclick="productSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
                flex items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
@@ -139,6 +139,8 @@ while ($row = $result->fetch_assoc())
         const track = document.getElementById('productTrack');
         if (!track) return;
         const cards = track.querySelectorAll('a');
+        const prevBtn = document.getElementById('productPrev');
+        const nextBtn = document.getElementById('productNext');
         let current = 0;
 
         function getVisible() {
@@ -152,6 +154,13 @@ while ($row = $result->fetch_assoc())
             return window.innerWidth >= 768 ? 16 : 8; // gap-4 = 16px, gap-2 = 8px
         }
 
+        function updateArrows(max) {
+            // Itago kapag nasa unang slide na (wala nang dulo sa kaliwa)
+            prevBtn.style.display = current <= 0 ? 'none' : 'flex';
+            // Itago kapag nasa huling slide na (wala nang dulo sa kanan)
+            nextBtn.style.display = current >= max ? 'none' : 'flex';
+        }
+
         function go(idx) {
             const visible = getVisible();
             const max = Math.max(0, cards.length - visible);
@@ -160,6 +169,7 @@ while ($row = $result->fetch_assoc())
             const cardW = cards[0].offsetWidth;
             const gap = getGap();
             track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
+            updateArrows(max);
         }
 
         window.productSlide = (dir) => go(current + dir);
@@ -172,5 +182,7 @@ while ($row = $result->fetch_assoc())
         });
 
         window.addEventListener('resize', () => go(current));
+
+        go(0); // initial check sa arrows pagka-load
     })();
 </script>

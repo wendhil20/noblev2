@@ -38,24 +38,24 @@ while ($row = $newResult->fetch_assoc())
     <div class="relative">
 
         <!-- Left arrow -->
-        <button onclick="newArrivalSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
-               w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
-               hover:bg-gray-50 transition-colors duration-200">
-            <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-        </button>
+<button id="newArrivalPrev" onclick="newArrivalSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
+       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
+       flex items-center justify-center text-gray-600
+       hover:bg-gray-50 transition-colors duration-200">
+    <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+    </svg>
+</button>
 
-        <!-- Right arrow -->
-        <button onclick="newArrivalSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
-               w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
-               hover:bg-gray-50 transition-colors duration-200">
-            <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-        </button>
+<!-- Right arrow -->
+<button id="newArrivalNext" onclick="newArrivalSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
+       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
+       flex items-center justify-center text-gray-600
+       hover:bg-gray-50 transition-colors duration-200">
+    <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+</button>
 
         <!-- Track -->
         <div class="overflow-hidden px-1 p-2">
@@ -129,38 +129,49 @@ while ($row = $newResult->fetch_assoc())
         </div>
     </div>
 
-    <script>
-        (function () {
-            const track = document.getElementById('newArrivalTrack');
-            const cards = track.querySelectorAll('a');
-            let current = 0;
+<script>
+    (function () {
+        const track = document.getElementById('newArrivalTrack');
+        const cards = track.querySelectorAll('a');
+        const prevBtn = document.getElementById('newArrivalPrev');
+        const nextBtn = document.getElementById('newArrivalNext');
+        let current = 0;
 
-            function getVisible() {
-                const w = window.innerWidth;
-                if (w >= 1024) return 4;
-                if (w >= 640) return 3;
-                return 2;
-            }
-            function getGap() {
-                return window.innerWidth >= 768 ? 16 : 8;
-            }
-            function go(idx) {
-                const visible = getVisible();
-                const max = Math.max(0, cards.length - visible);
-                current = Math.min(Math.max(idx, 0), max);
-                const cardW = cards[0].offsetWidth;
-                const gap = getGap();
-                track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
-            }
-            window.newArrivalSlide = (dir) => go(current + dir);
+        function getVisible() {
+            const w = window.innerWidth;
+            if (w >= 1024) return 4;
+            if (w >= 640) return 3;
+            return 2;
+        }
+        function getGap() {
+            return window.innerWidth >= 768 ? 16 : 8;
+        }
+        function updateArrows(max) {
+            // Itago kapag nasa unang slide na (wala nang dulo sa kaliwa)
+            prevBtn.style.display = current <= 0 ? 'none' : 'flex';
+            // Itago kapag nasa huling slide na (wala nang dulo sa kanan)
+            nextBtn.style.display = current >= max ? 'none' : 'flex';
+        }
+        function go(idx) {
+            const visible = getVisible();
+            const max = Math.max(0, cards.length - visible);
+            current = Math.min(Math.max(idx, 0), max);
+            const cardW = cards[0].offsetWidth;
+            const gap = getGap();
+            track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
+            updateArrows(max);
+        }
+        window.newArrivalSlide = (dir) => go(current + dir);
 
-            let startX = 0;
-            track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-            track.addEventListener('touchend', e => {
-                const diff = startX - e.changedTouches[0].clientX;
-                if (Math.abs(diff) > 40) newArrivalSlide(diff > 0 ? 1 : -1);
-            });
-            window.addEventListener('resize', () => go(current));
-        })();
-    </script>
+        let startX = 0;
+        track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+        track.addEventListener('touchend', e => {
+            const diff = startX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 40) newArrivalSlide(diff > 0 ? 1 : -1);
+        });
+        window.addEventListener('resize', () => go(current));
+
+        go(0); // initial check sa arrows pagka-load
+    })();
+</script>
 <?php endif; ?>

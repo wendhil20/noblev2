@@ -43,7 +43,7 @@ while ($row = $discResult->fetch_assoc())
     <div class="relative">
 
         <!-- Left arrow -->
-        <button onclick="discountSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
+        <button id="discountPrev" onclick="discountSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
                flex items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
@@ -53,7 +53,7 @@ while ($row = $discResult->fetch_assoc())
         </button>
 
         <!-- Right arrow -->
-        <button onclick="discountSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
+        <button id="discountNext" onclick="discountSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
                flex items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
@@ -136,6 +136,8 @@ while ($row = $discResult->fetch_assoc())
         (function () {
             const track = document.getElementById('discountTrack');
             const cards = track.querySelectorAll('a');
+            const prevBtn = document.getElementById('discountPrev');
+            const nextBtn = document.getElementById('discountNext');
             let current = 0;
 
             function getVisible() {
@@ -147,6 +149,10 @@ while ($row = $discResult->fetch_assoc())
             function getGap() {
                 return window.innerWidth >= 768 ? 16 : 8;
             }
+            function updateArrows(max) {
+                prevBtn.style.display = current <= 0 ? 'none' : 'flex';
+                nextBtn.style.display = current >= max ? 'none' : 'flex';
+            }
             function go(idx) {
                 const visible = getVisible();
                 const max = Math.max(0, cards.length - visible);
@@ -154,6 +160,7 @@ while ($row = $discResult->fetch_assoc())
                 const cardW = cards[0].offsetWidth;
                 const gap = getGap();
                 track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
+                updateArrows(max);
             }
             window.discountSlide = (dir) => go(current + dir);
 
@@ -164,6 +171,8 @@ while ($row = $discResult->fetch_assoc())
                 if (Math.abs(diff) > 40) discountSlide(diff > 0 ? 1 : -1);
             });
             window.addEventListener('resize', () => go(current));
+
+            go(0); // initial check sa arrows pagka-load
         })();
     </script>
 <?php endif; ?>

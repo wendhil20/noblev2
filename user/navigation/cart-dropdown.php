@@ -81,7 +81,16 @@
                     <a href="<?= BASE_URL ?>/mainproductview?id=${item.product_id}"
                        class="text-xs text-gray-800 font-medium truncate block hover:text-amber-600">${item.name}</a>
                     <p class="text-[11px] text-gray-400 truncate">${item.variant ?? ''}</p>
-                    <p class="text-[11px] font-semibold text-gray-700 mt-0.5">₱${formatPrice(item.price)}</p>
+                    <p class="text-[11px] font-semibold text-gray-700 mt-0.5">
+                        ₱${formatPrice(item.price)}
+                        ${(item.variant_disc > 0 || item.tier_discount > 0)
+                            ? `<span class="line-through text-gray-400 font-normal ml-1">₱${formatPrice(item.orig_price)}</span>`
+                            : ''}
+                    </p>
+                    <p class="text-[10px] mt-0.5">
+                        ${item.variant_disc > 0 ? `<span class="text-red-400 font-semibold mr-1">-${item.variant_disc}%</span>` : ''}
+                        ${item.tier_discount > 0 ? `<span class="text-green-600 font-semibold">-${item.tier_discount}% qty</span>` : ''}
+                    </p>
                     ${isOOS
                         ? '<p class="text-[10px] text-red-500 font-medium mt-0.5"><i class="fa-solid fa-circle-exclamation"></i> Out of stock</p>'
                         : exceeds

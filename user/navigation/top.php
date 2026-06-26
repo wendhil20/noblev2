@@ -62,12 +62,13 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                         class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
                     </div>
 
-                   <div id="desktop-search-error" class="hidden absolute -bottom-9 left-3 z-50">
-    <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-        Please fill in the blank.
-        <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
-    </div>
-</div>
+                    <div id="desktop-search-error" class="hidden absolute -bottom-9 left-3 z-50">
+                        <div
+                            class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                            Please fill in the blank.
+                            <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    </div>
                 </form>
 
                 <!-- Icon: Search (mobile only) -->
@@ -80,7 +81,11 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                 </button>
 
                 <!-- Cart Icon with Hover Dropdown -->
-                <div class="relative group" id="cart-icon-wrapper">
+                <?php
+                $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                $isCheckoutPage = rtrim($currentPath, '/') === rtrim(parse_url(BASE_URL . '/checkout', PHP_URL_PATH), '/');
+                ?>
+                <div class="relative group <?= $isCheckoutPage ? 'hidden' : '' ?>" id="cart-icon-wrapper">
                     <a href="<?= BASE_URL ?>/cartview"
                         class="relative p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150 block">
                         <i class="fa-solid fa-cart-flatbed"></i>
@@ -214,12 +219,12 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                 class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
             </div>
 
-           <div id="mobile-search-error" class="hidden absolute -bottom-9 left-3 z-50">
-    <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-        Please fill in the blank.
-        <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
-    </div>
-</div>
+            <div id="mobile-search-error" class="hidden absolute -bottom-9 left-3 z-50">
+                <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                    Please fill in the blank.
+                    <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+                </div>
+            </div>
         </div>
     </div>
 </nav>
@@ -616,50 +621,50 @@ $isLoggedIn = !empty($_SESSION['user_id']);
         );
     })();
 
-document.getElementById('desktop-search-form').addEventListener('submit', function (e) {
-    const input = document.getElementById('desktop-search-input');
-    const tooltip = document.getElementById('desktop-search-error');
-    if (input.value.trim() === '') {
-        e.preventDefault();
-        tooltip.classList.remove('hidden');
-        input.focus();
-    } else {
+    document.getElementById('desktop-search-form').addEventListener('submit', function (e) {
+        const input = document.getElementById('desktop-search-input');
+        const tooltip = document.getElementById('desktop-search-error');
+        if (input.value.trim() === '') {
+            e.preventDefault();
+            tooltip.classList.remove('hidden');
+            input.focus();
+        } else {
+            tooltip.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('desktop-search-input').addEventListener('input', function () {
+        document.getElementById('desktop-search-error').classList.add('hidden');
+    });
+
+    document.querySelector('#mobile-search-bar button').addEventListener('click', function (e) {
+        const input = document.getElementById('mobile-search-input');
+        const tooltip = document.getElementById('mobile-search-error');
+        if (input.value.trim() === '') {
+            tooltip.classList.remove('hidden');
+            input.focus();
+            return;
+        }
         tooltip.classList.add('hidden');
-    }
-});
+        window.location.href = `<?= BASE_URL ?>/shop?search=${encodeURIComponent(input.value.trim())}`;
+    });
 
-document.getElementById('desktop-search-input').addEventListener('input', function () {
-    document.getElementById('desktop-search-error').classList.add('hidden');
-});
+    document.getElementById('mobile-search-input').addEventListener('input', function () {
+        document.getElementById('mobile-search-error').classList.add('hidden');
+    });
 
-document.querySelector('#mobile-search-bar button').addEventListener('click', function (e) {
-    const input = document.getElementById('mobile-search-input');
-    const tooltip = document.getElementById('mobile-search-error');
-    if (input.value.trim() === '') {
-        tooltip.classList.remove('hidden');
-        input.focus();
-        return;
-    }
-    tooltip.classList.add('hidden');
-    window.location.href = `<?= BASE_URL ?>/shop?search=${encodeURIComponent(input.value.trim())}`;
-});
+    // Bagong dagdag: mawala ang tooltip pag click sa labas
+    document.addEventListener('click', function (e) {
+        const desktopInput = document.getElementById('desktop-search-input');
+        const desktopTooltip = document.getElementById('desktop-search-error');
+        if (desktopTooltip && !desktopInput.contains(e.target) && e.target !== desktopInput) {
+            desktopTooltip.classList.add('hidden');
+        }
 
-document.getElementById('mobile-search-input').addEventListener('input', function () {
-    document.getElementById('mobile-search-error').classList.add('hidden');
-});
-
-// Bagong dagdag: mawala ang tooltip pag click sa labas
-document.addEventListener('click', function (e) {
-    const desktopInput = document.getElementById('desktop-search-input');
-    const desktopTooltip = document.getElementById('desktop-search-error');
-    if (desktopTooltip && !desktopInput.contains(e.target) && e.target !== desktopInput) {
-        desktopTooltip.classList.add('hidden');
-    }
-
-    const mobileInput = document.getElementById('mobile-search-input');
-    const mobileTooltip = document.getElementById('mobile-search-error');
-    if (mobileTooltip && !mobileInput.contains(e.target) && e.target !== mobileInput) {
-        mobileTooltip.classList.add('hidden');
-    }
-});
+        const mobileInput = document.getElementById('mobile-search-input');
+        const mobileTooltip = document.getElementById('mobile-search-error');
+        if (mobileTooltip && !mobileInput.contains(e.target) && e.target !== mobileInput) {
+            mobileTooltip.classList.add('hidden');
+        }
+    });
 </script>

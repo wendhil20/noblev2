@@ -28,6 +28,18 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
             <h1 class="text-xl font-bold text-gray-900">Checkout</h1>
         </div>
 
+        <?php if ($hasStockIssue): ?>
+            <div id="stock-warning-banner"
+                class="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-6">
+                <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                <span>
+                    Some items in your cart are out of stock or exceed available stock.
+                    <a href="<?= BASE_URL ?>/cart" class="underline font-semibold">Go back to your cart</a>
+                    to adjust quantities before you can complete checkout.
+                </span>
+            </div>
+        <?php endif; ?>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
             <!-- ─────────────────────────────────────────────────────────────
@@ -113,9 +125,23 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                         <?php foreach ($cartItems as $item):
                             $price = floatval($item['pricesize']);
                             $discount = floatval($item['discountvariant']);
-                            $finalPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
-                            $lineTotal = $finalPrice * intval($item['quantity']);
+                            $unitPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                            $qty = intval($item['quantity']);
+                            $pid = $item['product_id'];
+
+                            // Apply quantity tier discount on top of variant discount
+                            $totalQtyForProduct = $productQtyMap[$pid] ?? $qty;
+                            $tiers              = $tiersPerProduct[$pid] ?? [];
+                            $tierDiscount       = resolveQtyDiscountPercent($tiers, $totalQtyForProduct);
+                            $finalPrice         = $unitPrice * (1 - $tierDiscount / 100);
+
+                            $lineTotal = $finalPrice * $qty;
                             $image = !empty($item['imagecolor']) ? $item['imagecolor'] : $item['imageproduct'];
+
+                            $itemStock        = intval($item['variant_stock']);
+                            $itemQty          = $qty;
+                            $itemOutOfStock   = $itemStock <= 0;
+                            $itemExceedsStock = !$itemOutOfStock && $itemQty > $itemStock;
                             ?>
                             <div class="flex items-center gap-3">
                                 <!-- Thumbnail -->
@@ -143,7 +169,19 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                                         <?php if ($discount > 0): ?>
                                             <span class="text-red-400 font-semibold">-<?= $discount ?>%</span>
                                         <?php endif; ?>
+                                        <?php if ($tierDiscount > 0): ?>
+                                            <span class="text-green-600 font-semibold">-<?= $tierDiscount ?>% qty</span>
+                                        <?php endif; ?>
                                     </p>
+                                    <?php if ($itemOutOfStock): ?>
+                                        <p class="text-[10px] text-red-500 font-medium mt-0.5">
+                                            <i class="fa-solid fa-circle-exclamation mr-0.5"></i>Out of stock
+                                        </p>
+                                    <?php elseif ($itemExceedsStock): ?>
+                                        <p class="text-[10px] text-red-500 font-medium mt-0.5">
+                                            <i class="fa-solid fa-triangle-exclamation mr-0.5"></i>Only <?= $itemStock ?> available
+                                        </p>
+                                    <?php endif; ?>
                                 </div>
 
                                 <!-- Price × qty -->
@@ -198,6 +236,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
         const SUBTOTAL = <?= round($subtotal, 2) ?>;
         const VAT_AMOUNT = <?= round($vatAmount, 2) ?>;
         const GRAND_TOTAL = <?= round($grandTotal, 2) ?>;
+        const HAS_STOCK_ISSUE = <?= $hasStockIssue ? 'true' : 'false' ?>;
         window._storeName = <?= json_encode($storeName) ?>;
 
         // ── Step state ────────────────────────────────────────────────────────
@@ -494,6 +533,15 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
 
         // ── Start payment — POST to the right handler then redirect to PayMongo ───
         async function startPayment() {
+            // Block payment entirely if cart has a stock issue
+            if (HAS_STOCK_ISSUE) {
+                const errEl = document.getElementById('err-payment');
+                document.getElementById('err-payment-msg').textContent =
+                    'Some items in your cart are out of stock or exceed available stock. Please go back to your cart and adjust quantities.';
+                errEl.classList.remove('hidden');
+                return;
+            }
+
             if (!chosenPaymentMethod) {
                 toggleErr('err-pay-method', true);
                 return;

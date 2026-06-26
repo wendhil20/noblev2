@@ -3,6 +3,7 @@
 // All backend logic for checkout — include this at the top of checkout.php
 
 include ROOT_PATH . '/network/connect.php';
+include ROOT_PATH . '/user/ui-page/backend/backend-page-2/productqtydiscount-helper.php';
 
 
 $userId   = intval($_SESSION['user_id']);
@@ -28,6 +29,7 @@ $stmt = $conn->prepare("
         v.sizename,
         v.pricesize,
         v.discountvariant,
+        v.stock         AS variant_stock,
         v.width,
         v.height,
         v.leght         AS length,
@@ -54,17 +56,47 @@ if (empty($cartItems)) {
     exit;
 }
 
-// ── 2. Subtotal + cart volume/weight totals ────────────────────────────────────
+// ── 2a. Group total qty per product (for tier discount resolution) ─────────────
+// Same logic as cartview.php — quantity tier discounts are resolved against the
+// TOTAL quantity of a product across all cart rows (e.g. different colors/sizes),
+// not just the quantity of a single row.
+$productQtyMap = []; // product_id => total qty in cart
+foreach ($cartItems as $item) {
+    $pid = $item['product_id'];
+    $productQtyMap[$pid] = ($productQtyMap[$pid] ?? 0) + intval($item['quantity']);
+}
+
+$tiersPerProduct = []; // product_id => tiers array
+foreach (array_unique(array_column($cartItems, 'product_id')) as $pid) {
+    $tiersPerProduct[$pid] = getProductQtyTiers($conn, (int) $pid);
+}
+
+// ── 2b. Subtotal + cart volume/weight totals + stock validation ────────────────
 $subtotal        = 0;
 $totalVolumeCbm  = 0;  // cubic meters
 $totalWeightKg   = 0;  // kg
+$hasStockIssue   = false; // true if any item is out of stock or qty exceeds stock
 
 foreach ($cartItems as $item) {
     $price      = floatval($item['pricesize']);
     $discount   = floatval($item['discountvariant']);
-    $finalPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+    $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
     $qty        = intval($item['quantity']);
+    $pid        = $item['product_id'];
+
+    // Apply quantity tier discount on top of variant discount (matches cartview.php)
+    $totalQtyForProduct = $productQtyMap[$pid] ?? $qty;
+    $tiers              = $tiersPerProduct[$pid] ?? [];
+    $tierDiscount       = resolveQtyDiscountPercent($tiers, $totalQtyForProduct);
+    $finalPrice         = $unitPrice * (1 - $tierDiscount / 100);
+
     $subtotal  += $finalPrice * $qty;
+
+    // ── Stock validation ────────────────────────────────────────────────────
+    $stock = intval($item['variant_stock']);
+    if ($stock <= 0 || $qty > $stock) {
+        $hasStockIssue = true;
+    }
 
     // Convert dimensions to meters then compute volume per unit
     $unit = strtolower(trim($item['dimension_unit'] ?? 'mm'));

@@ -45,7 +45,7 @@ function loadProductColors(mysqli $conn, int $productId): array
     $colorIds    = implode(',', array_keys($colors));
     $variantRows = $conn->query(
         "SELECT id, color_id, sizename, pricesize, discountvariant,
-                width, height, leght, dimension_unit, weight, weight_unit
+                width, height, leght, dimension_unit, weight, weight_unit, stock
          FROM nobleproductvariant
          WHERE color_id IN ($colorIds)
          ORDER BY color_id ASC, id ASC"
