@@ -66,19 +66,21 @@ try {
     $galleryJson = !empty($existingGallery) ? json_encode(array_values($existingGallery)) : null;
 
     // ── Update product ─────────────────────────────────────────────────────
-    if ($newProductImage !== null) {
-        $stmt = $conn->prepare(
-            "UPDATE nobleproduct SET name=?, imageproduct=?, description=?, category=?, unit=?, specifications=?, gallery=? WHERE id=?"
-        );
-        $stmt->bind_param("sssssssi", $name, $newProductImage, $description, $category, $unit, $specificationsJson, $galleryJson, $productId);
-    } else {
-        $stmt = $conn->prepare(
-            "UPDATE nobleproduct SET name=?, description=?, category=?, unit=?, specifications=?, gallery=? WHERE id=?"
-        );
-        $stmt->bind_param("ssssssi", $name, $description, $category, $unit, $specificationsJson, $galleryJson, $productId);
-    }
-    $stmt->execute();
-    $stmt->close();
+    $updatedBy = $_SESSION['account_id'] ?? null;
+
+if ($newProductImage !== null) {
+    $stmt = $conn->prepare(
+        "UPDATE nobleproduct SET name=?, imageproduct=?, description=?, category=?, unit=?, specifications=?, gallery=?, updated_by=? WHERE id=?"
+    );
+    $stmt->bind_param("sssssssii", $name, $newProductImage, $description, $category, $unit, $specificationsJson, $galleryJson, $updatedBy, $productId);
+} else {
+    $stmt = $conn->prepare(
+        "UPDATE nobleproduct SET name=?, description=?, category=?, unit=?, specifications=?, gallery=?, updated_by=? WHERE id=?"
+    );
+    $stmt->bind_param("ssssssii", $name, $description, $category, $unit, $specificationsJson, $galleryJson, $updatedBy, $productId);
+}
+$stmt->execute();
+$stmt->close();
 
     // ── 2. Colors ──────────────────────────────────────────────────────────
     $postedColorIds = $_POST['color_id'] ?? [];

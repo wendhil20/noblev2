@@ -55,14 +55,16 @@ try {
     $galleryJson = !empty($galleryFilenames) ? json_encode($galleryFilenames) : null;
 
     // ── Insert product ─────────────────────────────────────────────────────
-    $stmt = $conn->prepare(
-        "INSERT INTO nobleproduct (name, imageproduct, description, category, unit, specifications, gallery)
-     VALUES (?, ?, ?, ?, ?, ?, ?)"
-    );
-    $stmt->bind_param("sssssss", $name, $productImage, $description, $category, $unit, $specificationsJson, $galleryJson);
-    $stmt->execute();
-    $productId = $conn->insert_id;
-    $stmt->close();
+$createdBy = $_SESSION['account_id'] ?? null;
+
+$stmt = $conn->prepare(
+    "INSERT INTO nobleproduct (name, imageproduct, description, category, unit, specifications, gallery, created_by, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+);
+$stmt->bind_param("sssssssii", $name, $productImage, $description, $category, $unit, $specificationsJson, $galleryJson, $createdBy, $createdBy);
+$stmt->execute();
+$productId = $conn->insert_id;
+$stmt->close();
 
     // ── Colors ─────────────────────────────────────────────────────────────
     $colorNames = $_POST['color_name'] ?? [];

@@ -615,33 +615,33 @@ if ($isLoggedIn) {
         // ──────────────────────────────────────────────────────────────────
 
         function updateFinalPrice(unitPrice) {
-    const el = document.getElementById('final-price-display');
-    if (!el) return;
-    if (!unitPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
+            const el = document.getElementById('final-price-display');
+            if (!el) return;
+            if (!unitPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
 
-    const subtotal = unitPrice * selectedQty;
-    const tierDiscountPercent = resolveTierDiscount(selectedQty);
-    const discountAmount = subtotal * (tierDiscountPercent / 100);
-    const total = subtotal - discountAmount;
+            const subtotal = unitPrice * selectedQty;
+            const tierDiscountPercent = resolveTierDiscount(selectedQty);
+            const discountAmount = subtotal * (tierDiscountPercent / 100);
+            const total = subtotal - discountAmount;
 
-    // ── I-update ang price-display sa taas kung may tier discount ──
-    const priceDisplay = document.getElementById('price-display');
-    if (priceDisplay) {
-        const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
-        if (tierDiscountPercent > 0) {
-            priceDisplay.innerHTML = `
+            // ── I-update ang price-display sa taas kung may tier discount ──
+            const priceDisplay = document.getElementById('price-display');
+            if (priceDisplay) {
+                const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
+                if (tierDiscountPercent > 0) {
+                    priceDisplay.innerHTML = `
                 <span class="text-base md:text-xl font-bold text-gray-900">₱${discountedUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                 <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-        } else {
-            priceDisplay.innerHTML = `<span class="text-base md:text-xl font-bold text-gray-900">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+                } else {
+                    priceDisplay.innerHTML = `<span class="text-base md:text-xl font-bold text-gray-900">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+                }
+            }
+
+            el.classList.remove('hidden');
+
+            // ── Total — plain lang, walang discount badge ──
+            el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span><span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
         }
-    }
-
-    el.classList.remove('hidden');
-
-    // ── Total — plain lang, walang discount badge ──
-    el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span><span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-}
 
         // ─── Quantity ──────────────────────────────────────────────────
         function showQtySection() {

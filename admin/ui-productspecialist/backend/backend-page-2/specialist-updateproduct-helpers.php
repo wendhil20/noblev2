@@ -4,8 +4,14 @@
 function loadProductById(mysqli $conn, int $id): ?array
 {
     $stmt = $conn->prepare(
-        "SELECT id, name, imageproduct, description, category, unit, specifications, gallery
-         FROM nobleproduct WHERE id = ? LIMIT 1"
+        "SELECT p.id, p.name, p.imageproduct, p.description, p.category, p.unit,
+                p.specifications, p.gallery, p.created_by, p.updated_by,
+                creator.name AS created_by_name,
+                editor.name  AS updated_by_name
+         FROM nobleproduct p
+         LEFT JOIN noblerole creator ON creator.id = p.created_by
+         LEFT JOIN noblerole editor  ON editor.id  = p.updated_by
+         WHERE p.id = ? LIMIT 1"
     );
     $stmt->bind_param("i", $id);
     $stmt->execute();
