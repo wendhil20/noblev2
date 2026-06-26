@@ -304,6 +304,12 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                         <span id="imageOptionalNote" class="hidden font-normal text-slate-400">(leave blank to keep
                             current)</span>
                     </label>
+
+                    <!-- Recommended size note -->
+                    <p class="text-xs text-indigo-500 font-medium mb-2">
+                        Recommended size: <span class="font-semibold">2000 x 677 px</span> for best display quality.
+                    </p>
+
                     <!-- Preview -->
                     <div id="imagePreviewWrap" class="mb-2 hidden">
                         <img id="imagePreview" src="" alt="Current banner"
@@ -318,7 +324,8 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                                 d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                         </svg>
                         <span id="dropLabel" class="text-xs text-slate-500">Click to upload or drag & drop</span>
-                        <span class="text-xs text-slate-400">JPG, PNG, WEBP, GIF · max 5 MB</span>
+                        <span class="text-xs text-slate-400">JPG, PNG, WEBP, GIF · max 5 MB · 2000×677px
+                            recommended</span>
                         <input type="file" name="banner_image" id="fieldImage" accept="image/*" class="hidden"
                             onchange="previewImage(this)">
                     </label>
