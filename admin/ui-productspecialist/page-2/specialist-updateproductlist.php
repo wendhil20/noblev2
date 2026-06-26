@@ -9,8 +9,10 @@ $allowedRoles = [ROLE_PRODUCTSPECIALIST];
 include ROOT_PATH . '/admin/authentication/index-roleguard.php';
 
 // ── Load all products with color + variant counts ──────────────────────────
+$currentUserId = $_SESSION['account_id'] ?? 0;
+
 $products = [];
-$result = $conn->query("
+$stmt = $conn->prepare("
     SELECT
         p.id,
         p.name,
@@ -24,11 +26,16 @@ $result = $conn->query("
     LEFT JOIN nobleproductcolor   c ON c.product_id = p.id
     LEFT JOIN nobleproductvariant v ON v.color_id   = c.id
     LEFT JOIN noblerole creator      ON creator.id  = p.created_by
+    WHERE p.created_by = ?
     GROUP BY p.id
     ORDER BY p.name ASC
 ");
+$stmt->bind_param("i", $currentUserId);
+$stmt->execute();
+$result = $stmt->get_result();
 while ($row = $result->fetch_assoc())
     $products[] = $row;
+$stmt->close();
 
 // ── Distinct categories for filter dropdown ────────────────────────────────
 $categories = [];
@@ -120,7 +127,7 @@ $uploadUrl = BASE_URL . '/uploads/'; // public URL prefix for product images
                         <tr>
                             <td colspan="7" class="px-5 py-12 text-center text-gray-400 text-sm">
                                 <i class="fa-solid fa-box-open text-3xl mb-3 block text-gray-300"></i>
-                                No products yet. <a href="specialist-insertproduct.php"
+                                No products yet. <a href="<?= BASE_URL ?>/ps-insertproduct"
                                     class="text-amber-500 hover:underline">Add one</a>.
                             </td>
                         </tr>
