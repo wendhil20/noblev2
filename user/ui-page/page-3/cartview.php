@@ -2,6 +2,7 @@
 // cartview.php
 
 include ROOT_PATH . '/network/connect.php';
+include ROOT_PATH . '/user/ui-page/backend/backend-page-2/productqtydiscount-helper.php';
 
 $uploadUrl = BASE_URL . '/uploads/';
 
@@ -48,14 +49,34 @@ $stmt->execute();
 $cartItems = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
-// Compute totals (only count items that still have stock toward subtotal logic is unchanged —
-// out-of-stock items remain visible but flagged, matching how most carts behave)
+// ─── Group total qty per product (for tier discount resolution) ───────────────
+$productQtyMap = []; // product_id => total qty in cart
+foreach ($cartItems as $item) {
+    $pid = $item['product_id'];
+    $productQtyMap[$pid] = ($productQtyMap[$pid] ?? 0) + intval($item['quantity']);
+}
+
+// ─── Load tiers per unique product ───────────────────────────────────────────
+$tiersPerProduct = []; // product_id => tiers array
+foreach (array_unique(array_column($cartItems, 'product_id')) as $pid) {
+    $tiersPerProduct[$pid] = getProductQtyTiers($conn, (int) $pid);
+}
+
+// ─── Compute subtotal with tier discounts applied ─────────────────────────────
 $subtotal = 0;
 foreach ($cartItems as $item) {
-    $price = floatval($item['pricesize']);
-    $discount = floatval($item['discountvariant']);
-    $finalPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
-    $subtotal += $finalPrice * intval($item['quantity']);
+    $price      = floatval($item['pricesize']);
+    $discount   = floatval($item['discountvariant']);
+    $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+    $qty        = intval($item['quantity']);
+    $pid        = $item['product_id'];
+
+    $totalQtyForProduct = $productQtyMap[$pid] ?? $qty;
+    $tiers              = $tiersPerProduct[$pid] ?? [];
+    $tierDiscount       = resolveQtyDiscountPercent($tiers, $totalQtyForProduct);
+
+    $lineSubtotal = $unitPrice * $qty;
+    $subtotal    += $lineSubtotal * (1 - $tierDiscount / 100);
 }
 
 $LOW_STOCK_THRESHOLD = 5;
@@ -135,21 +156,30 @@ $LOW_STOCK_THRESHOLD = 5;
                 <!-- Cart Items -->
                 <div class="lg:col-span-2 flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1" id="cart-list">
                     <?php foreach ($cartItems as $item):
-                        $price = floatval($item['pricesize']);
-                        $discount = floatval($item['discountvariant']);
-                        $finalPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
-                        $image = !empty($item['imagecolor']) ? $item['imagecolor'] : $item['imageproduct'];
-                        $stock = intval($item['variant_stock']);
-                        $qty = intval($item['quantity']);
+                        $price      = floatval($item['pricesize']);
+                        $discount   = floatval($item['discountvariant']);
+                        $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                        $qty        = intval($item['quantity']);
+                        $pid        = $item['product_id'];
+
+                        $totalQtyForProduct = $productQtyMap[$pid] ?? $qty;
+                        $tiers              = $tiersPerProduct[$pid] ?? [];
+                        $tierDiscount       = resolveQtyDiscountPercent($tiers, $totalQtyForProduct);
+                        $discountedUnit     = $unitPrice * (1 - $tierDiscount / 100);
+
+                        $image        = !empty($item['imagecolor']) ? $item['imagecolor'] : $item['imageproduct'];
+                        $stock        = intval($item['variant_stock']);
                         $isOutOfStock = $stock <= 0;
                         $exceedsStock = !$isOutOfStock && $qty > $stock;
-                        $maxQty = max($stock, 1); // for input max attr; disabled separately if 0
-                        ?>
+                        $maxQty       = max($stock, 1);
+                    ?>
                         <div class="cart-row bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start <?= $isOutOfStock ? 'out-of-stock' : '' ?>"
-                            id="cart-row-<?= $item['cart_id'] ?>" data-stock="<?= $stock ?>">
+                            id="cart-row-<?= $item['cart_id'] ?>"
+                            data-stock="<?= $stock ?>"
+                            data-product-id="<?= $pid ?>">
 
                             <!-- Product Image -->
-                            <a href="<?= BASE_URL ?>/mainproductview?id=<?= $item['product_id'] ?>"
+                            <a href="<?= BASE_URL ?>/mainproductview?id=<?= $pid ?>"
                                 class="flex-shrink-0 w-20 h-20 rounded-xl bg-gray-50 overflow-hidden flex items-center justify-center border border-gray-100">
                                 <?php if ($image): ?>
                                     <img src="<?= $uploadUrl . htmlspecialchars($image) ?>"
@@ -169,7 +199,7 @@ $LOW_STOCK_THRESHOLD = 5;
                                                 <?= htmlspecialchars($item['product_category']) ?>
                                             </span>
                                         <?php endif; ?>
-                                        <a href="<?= BASE_URL ?>/mainproductview?id=<?= $item['product_id'] ?>"
+                                        <a href="<?= BASE_URL ?>/mainproductview?id=<?= $pid ?>"
                                             class="block text-sm font-semibold text-gray-900 hover:text-amber-600 transition leading-tight mt-0.5 truncate max-w-xs">
                                             <?= htmlspecialchars($item['product_name']) ?>
                                         </a>
@@ -211,15 +241,22 @@ $LOW_STOCK_THRESHOLD = 5;
 
                                 <!-- Price + Qty -->
                                 <div class="flex items-center justify-between mt-3">
-                                    <div>
+                                    <div class="flex flex-col">
+                                        <!-- Unit price after variant discount + tier discount -->
                                         <span class="text-sm font-bold text-gray-900" id="item-price-<?= $item['cart_id'] ?>">
-                                            ₱<?= number_format($finalPrice, 2) ?>
+                                            ₱<?= number_format($discountedUnit, 2) ?>
                                         </span>
-                                        <?php if ($discount > 0): ?>
-                                            <span
-                                                class="text-xs text-gray-400 line-through ml-1">₱<?= number_format($price, 2) ?></span>
-                                            <span class="text-xs text-red-400 font-semibold ml-1">-<?= $discount ?>%</span>
-                                        <?php endif; ?>
+                                        <span class="text-[10px] text-gray-400" id="item-price-meta-<?= $item['cart_id'] ?>">
+                                            <?php if ($discount > 0 || $tierDiscount > 0): ?>
+                                                <span class="line-through mr-1">₱<?= number_format($price, 2) ?></span>
+                                            <?php endif; ?>
+                                            <?php if ($discount > 0): ?>
+                                                <span class="text-red-400 font-semibold mr-1">-<?= $discount ?>%</span>
+                                            <?php endif; ?>
+                                            <?php if ($tierDiscount > 0): ?>
+                                                <span class="text-green-600 font-semibold">-<?= $tierDiscount ?>% qty</span>
+                                            <?php endif; ?>
+                                        </span>
                                     </div>
 
                                     <!-- Quantity Controls -->
@@ -270,21 +307,33 @@ $LOW_STOCK_THRESHOLD = 5;
 
                         <div class="space-y-3 text-sm text-gray-600 mb-5" id="summary-lines">
                             <?php foreach ($cartItems as $item):
-                                $price = floatval($item['pricesize']);
-                                $discount = floatval($item['discountvariant']);
-                                $finalPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
-                                $lineTotal = $finalPrice * intval($item['quantity']);
-                                ?>
+                                $price      = floatval($item['pricesize']);
+                                $discount   = floatval($item['discountvariant']);
+                                $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                                $qty        = intval($item['quantity']);
+                                $pid        = $item['product_id'];
+
+                                $totalQtyForProduct = $productQtyMap[$pid] ?? $qty;
+                                $tiers              = $tiersPerProduct[$pid] ?? [];
+                                $tierDiscount       = resolveQtyDiscountPercent($tiers, $totalQtyForProduct);
+                                $discountedUnit     = $unitPrice * (1 - $tierDiscount / 100);
+                                $lineTotal          = $discountedUnit * $qty;
+                            ?>
                                 <div class="flex justify-between items-start gap-2" id="summary-row-<?= $item['cart_id'] ?>">
                                     <span class="text-xs text-gray-500 leading-snug line-clamp-2">
                                         <?= htmlspecialchars($item['product_name']) ?>
-                                        <span class="text-gray-400">× <?= $item['quantity'] ?></span>
+                                        <span class="text-gray-400" id="summary-qty-<?= $item['cart_id'] ?>">× <?= $qty ?></span>
                                         <span class="block text-[10px] text-gray-400 mt-0.5">
                                             <?= htmlspecialchars($item['colorname']) ?>
                                             <?php if (!empty($item['sizename'])): ?>
                                                 · <?= htmlspecialchars($item['sizename']) ?>
                                             <?php endif; ?>
                                         </span>
+                                        <?php if ($tierDiscount > 0): ?>
+                                            <span class="block text-[10px] text-green-600 font-semibold mt-0.5">
+                                                <i class="fa-solid fa-tag mr-0.5"></i>-<?= $tierDiscount ?>% qty discount applied
+                                            </span>
+                                        <?php endif; ?>
                                     </span>
                                     <span class="text-xs font-medium text-gray-700 whitespace-nowrap"
                                         id="summary-price-<?= $item['cart_id'] ?>">
@@ -323,9 +372,134 @@ $LOW_STOCK_THRESHOLD = 5;
         const removeCartUrl = <?= json_encode(BASE_URL . '/cartremove') ?>;
         const LOW_STOCK_THRESHOLD = <?= (int) $LOW_STOCK_THRESHOLD ?>;
 
+        // ─── Tier discount data from PHP ──────────────────────────────────────
+        // tiersPerProduct: { product_id: [{min_qty, max_qty, discount_percent}, ...], ... }
+        const tiersPerProduct = <?= json_encode($tiersPerProduct) ?>;
+        // productQtyMap: mutable — total qty per product across all cart rows
+        const productQtyMap = <?= json_encode($productQtyMap) ?>;
+
+        /**
+         * Resolve the tier discount percent for a given product + total qty.
+         * Returns 0 if no tier matches.
+         */
+        function resolveTierDiscount(productId, totalQty) {
+            const tiers = tiersPerProduct[productId] ?? [];
+            for (const t of tiers) {
+                if (totalQty >= parseInt(t.min_qty, 10) && totalQty <= parseInt(t.max_qty, 10)) {
+                    return parseFloat(t.discount_percent) || 0;
+                }
+            }
+            return 0;
+        }
+
+        /**
+         * Recompute the total qty for a product across all visible cart rows,
+         * and update productQtyMap accordingly.
+         */
+        function recomputeProductQty(productId) {
+            let total = 0;
+            document.querySelectorAll(`.cart-row[data-product-id="${productId}"]`).forEach(row => {
+                const inp = row.querySelector('.qty-input');
+                total += parseInt(inp?.value || '0', 10);
+            });
+            productQtyMap[productId] = total;
+            return total;
+        }
+
+        /**
+         * After any qty change, refresh all cart rows for the same product
+         * because their tier discount may have changed.
+         */
+        function refreshProductRows(productId) {
+            const totalQty     = productQtyMap[productId] ?? 0;
+            const tierDiscount = resolveTierDiscount(productId, totalQty);
+
+            document.querySelectorAll(`.cart-row[data-product-id="${productId}"]`).forEach(row => {
+                const cartId    = row.id.replace('cart-row-', '');
+                const inp       = document.getElementById('qty-' + cartId);
+                const qty       = parseInt(inp?.value || '1', 10);
+                const stock     = parseInt(row.dataset.stock, 10);
+
+                // Read base unit price from data attributes stored on the price element
+                const priceEl   = document.getElementById('item-price-' + cartId);
+                const baseUnit  = parseFloat(priceEl?.dataset.baseUnit ?? '0');
+                if (!baseUnit) return;
+
+                const discountedUnit = baseUnit * (1 - tierDiscount / 100);
+                const lineTotal      = discountedUnit * qty;
+
+                // Update unit price display
+                priceEl.textContent = '₱' + formatPrice(discountedUnit);
+
+                // Update meta (strikethrough + discount badges)
+                const metaEl = document.getElementById('item-price-meta-' + cartId);
+                if (metaEl) {
+                    const origPrice   = parseFloat(priceEl.dataset.origPrice ?? '0');
+                    const variantDisc = parseFloat(priceEl.dataset.variantDisc ?? '0');
+                    let metaHtml = '';
+                    if (variantDisc > 0 || tierDiscount > 0) {
+                        metaHtml += `<span class="line-through mr-1">₱${formatPrice(origPrice)}</span>`;
+                    }
+                    if (variantDisc > 0) {
+                        metaHtml += `<span class="text-red-400 font-semibold mr-1">-${variantDisc}%</span>`;
+                    }
+                    if (tierDiscount > 0) {
+                        metaHtml += `<span class="text-green-600 font-semibold">-${tierDiscount}% qty</span>`;
+                    }
+                    metaEl.innerHTML = metaHtml;
+                }
+
+                // Update summary price
+                const summaryPrice = document.getElementById('summary-price-' + cartId);
+                if (summaryPrice) summaryPrice.textContent = '₱' + formatPrice(lineTotal);
+
+                // Update summary tier discount note
+                const summaryRow = document.getElementById('summary-row-' + cartId);
+                if (summaryRow) {
+                    let tierNote = summaryRow.querySelector('.tier-discount-note');
+                    if (tierDiscount > 0) {
+                        if (!tierNote) {
+                            tierNote = document.createElement('span');
+                            tierNote.className = 'tier-discount-note block text-[10px] text-green-600 font-semibold mt-0.5';
+                            summaryRow.querySelector('span')?.appendChild(tierNote);
+                        }
+                        tierNote.innerHTML = `<i class="fa-solid fa-tag mr-0.5"></i>-${tierDiscount}% qty discount applied`;
+                    } else if (tierNote) {
+                        tierNote.remove();
+                    }
+                }
+            });
+
+            // Recompute subtotal from all visible rows
+            recomputeSubtotal();
+        }
+
+        /**
+         * Recompute the full subtotal from all current cart row states.
+         */
+        function recomputeSubtotal() {
+            let subtotal = 0;
+            document.querySelectorAll('.cart-row').forEach(row => {
+                const cartId    = row.id.replace('cart-row-', '');
+                const inp       = document.getElementById('qty-' + cartId);
+                const qty       = parseInt(inp?.value || '0', 10);
+                const priceEl   = document.getElementById('item-price-' + cartId);
+                const baseUnit  = parseFloat(priceEl?.dataset.baseUnit ?? '0');
+                if (!baseUnit || !qty) return;
+
+                const productId    = row.dataset.productId;
+                const totalQty     = productQtyMap[productId] ?? qty;
+                const tierDiscount = resolveTierDiscount(productId, totalQty);
+                const discUnit     = baseUnit * (1 - tierDiscount / 100);
+                subtotal          += discUnit * qty;
+            });
+            const el = document.getElementById('subtotal-display');
+            if (el) el.textContent = '₱' + formatPrice(subtotal);
+        }
+
         // ── Change qty via +/– buttons ────────────────────────────────────────
         function changeQty(cartId, delta) {
-            const row = document.getElementById('cart-row-' + cartId);
+            const row   = document.getElementById('cart-row-' + cartId);
             const stock = parseInt(row?.dataset.stock ?? '0', 10);
             const input = document.getElementById('qty-' + cartId);
 
@@ -344,57 +518,60 @@ $LOW_STOCK_THRESHOLD = 5;
 
         // ── Update quantity via AJAX ──────────────────────────────────────────
         async function updateQty(cartId, qty) {
-            const row = document.getElementById('cart-row-' + cartId);
-            const stock = parseInt(row?.dataset.stock ?? '0', 10);
+            const row       = document.getElementById('cart-row-' + cartId);
+            const stock     = parseInt(row?.dataset.stock ?? '0', 10);
+            const productId = row?.dataset.productId;
 
             qty = parseInt(qty) || 1;
             qty = Math.max(1, qty);
             if (stock > 0) qty = Math.min(stock, qty);
-            if (stock <= 0) qty = parseInt(document.getElementById('qty-' + cartId).value) || 1; // shouldn't happen, input is disabled
 
             document.getElementById('qty-' + cartId).value = qty;
+
+            // Optimistically update productQtyMap for immediate tier feedback
+            recomputeProductQty(productId);
+            refreshProductRows(productId);
 
             try {
                 const fd = new FormData();
                 fd.append('cart_id', cartId);
                 fd.append('quantity', qty);
 
-                const res = await fetch(updateCartUrl, { method: 'POST', body: fd });
+                const res  = await fetch(updateCartUrl, { method: 'POST', body: fd });
                 const data = await res.json();
 
                 if (data.ok) {
-                    // Update per-item price display
+                    // Sync base unit price from server (variant-discount-only, no tier)
                     if (data.final_price !== undefined) {
-                        document.getElementById('item-price-' + cartId).textContent =
-                            '₱' + formatPrice(data.final_price);
-                        const summaryPrice = document.getElementById('summary-price-' + cartId);
-                        if (summaryPrice) {
-                            summaryPrice.textContent = '₱' + formatPrice(data.final_price * qty);
-                        }
-                        // Update summary qty label
-                        const summaryRow = document.getElementById('summary-row-' + cartId);
-                        if (summaryRow) {
-                            const qtySpan = summaryRow.querySelector('.text-gray-400');
-                            if (qtySpan) qtySpan.textContent = '× ' + qty;
+                        const priceEl = document.getElementById('item-price-' + cartId);
+                        if (priceEl) {
+                            // Store base unit for client-side tier recomputation
+                            priceEl.dataset.baseUnit = data.final_price;
                         }
                     }
-                    // Update subtotal
-                    if (data.subtotal !== undefined) {
-                        document.getElementById('subtotal-display').textContent = '₱' + formatPrice(data.subtotal);
-                    }
-                    // Sync stock from server if provided (in case it changed elsewhere)
+
+
+                    // Sync summary qty label
+                    const summaryQty = document.getElementById('summary-qty-' + cartId);
+                    if (summaryQty) summaryQty.textContent = '× ' + qty;
+
+                    // Sync stock from server
                     if (data.stock !== undefined) {
                         row.dataset.stock = data.stock;
+                        recomputeProductQty(productId); // re-sync after stock update
+                        refreshProductRows(productId);
                         updateStockLabel(cartId, data.stock, qty);
                     } else {
                         updateStockLabel(cartId, stock, qty);
                     }
+
                     refreshStockWarningBanner();
                 } else {
                     showToast('error', data.msg || 'Update failed.');
-                    // revert displayed qty if server rejected (e.g. exceeded stock server-side)
                     if (data.max_quantity !== undefined) {
                         document.getElementById('qty-' + cartId).value = data.max_quantity;
+                        recomputeProductQty(productId);
+                        refreshProductRows(productId);
                     }
                 }
             } catch (e) {
@@ -403,7 +580,7 @@ $LOW_STOCK_THRESHOLD = 5;
         }
 
         function updateStockLabel(cartId, stock, qty) {
-            const label = document.getElementById('stock-label-' + cartId);
+            const label   = document.getElementById('stock-label-' + cartId);
             const plusBtn = document.getElementById('qty-plus-' + cartId);
             if (!label) return;
 
@@ -425,12 +602,11 @@ $LOW_STOCK_THRESHOLD = 5;
         function refreshStockWarningBanner() {
             const banner = document.getElementById('stock-warning-banner');
             if (!banner) return;
-            const rows = document.querySelectorAll('.cart-row');
             let issue = false;
-            rows.forEach(row => {
-                const stock = parseInt(row.dataset.stock || '0', 10);
+            document.querySelectorAll('.cart-row').forEach(row => {
+                const stock    = parseInt(row.dataset.stock || '0', 10);
                 const qtyInput = row.querySelector('.qty-input');
-                const qty = qtyInput ? parseInt(qtyInput.value || '0', 10) : 0;
+                const qty      = qtyInput ? parseInt(qtyInput.value || '0', 10) : 0;
                 if (stock <= 0 || qty > stock) issue = true;
             });
             banner.classList.toggle('hidden', !issue);
@@ -442,37 +618,38 @@ $LOW_STOCK_THRESHOLD = 5;
                 const fd = new FormData();
                 fd.append('cart_id', cartId);
 
-                const res = await fetch(removeCartUrl, { method: 'POST', body: fd });
+                const res  = await fetch(removeCartUrl, { method: 'POST', body: fd });
                 const data = await res.json();
 
                 if (data.ok) {
-                    // Animate out and remove row
-                    const row = document.getElementById('cart-row-' + cartId);
+                    const row        = document.getElementById('cart-row-' + cartId);
+                    const productId  = row?.dataset.productId;
                     const summaryRow = document.getElementById('summary-row-' + cartId);
+
                     if (row) {
                         row.style.transition = 'opacity 0.25s, transform 0.25s';
-                        row.style.opacity = '0';
-                        row.style.transform = 'translateX(10px)';
+                        row.style.opacity    = '0';
+                        row.style.transform  = 'translateX(10px)';
                         setTimeout(() => {
                             row.remove();
+                            // Re-sync qty map and refresh remaining rows of same product
+                            if (productId) {
+                                recomputeProductQty(productId);
+                                refreshProductRows(productId);
+                            }
                             refreshStockWarningBanner();
                         }, 260);
                     }
                     if (summaryRow) setTimeout(() => summaryRow.remove(), 260);
 
-                    // Update subtotal
-                    if (data.subtotal !== undefined) {
-                        document.getElementById('subtotal-display').textContent = '₱' + formatPrice(data.subtotal);
-                    }
+                  
 
                     showToast('success', 'Item removed from cart.');
 
-                    // If cart is now empty, reload to show empty state
                     if (data.cart_count === 0) {
                         setTimeout(() => location.reload(), 800);
                     }
 
-                    // Update nav cart count
                     const counter = document.getElementById('cart-count');
                     if (counter && data.cart_count !== undefined) {
                         if (data.cart_count > 0) {
@@ -496,8 +673,8 @@ $LOW_STOCK_THRESHOLD = 5;
 
         function showToast(type, msg) {
             const toast = document.getElementById('toast');
-            const icon = document.getElementById('toast-icon');
-            const text = document.getElementById('toast-msg');
+            const icon  = document.getElementById('toast-icon');
+            const text  = document.getElementById('toast-msg');
 
             icon.innerHTML = type === 'success'
                 ? '<i class="fa-solid fa-circle-check text-green-500"></i>'
@@ -512,6 +689,34 @@ $LOW_STOCK_THRESHOLD = 5;
                 toast.classList.remove('opacity-100', 'translate-y-0');
             }, 3000);
         }
+
+        // ── Init: stamp base unit prices on price elements for JS recomputation ──
+        document.addEventListener('DOMContentLoaded', () => {
+            <?php foreach ($cartItems as $item):
+                $price      = floatval($item['pricesize']);
+                $discount   = floatval($item['discountvariant']);
+                $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+            ?>
+            (function () {
+                const el = document.getElementById('item-price-<?= $item['cart_id'] ?>');
+                if (el) {
+                    el.dataset.baseUnit    = <?= json_encode($unitPrice) ?>;      // variant-discounted unit (no tier)
+                    el.dataset.origPrice   = <?= json_encode($price) ?>;          // original price before any discount
+                    el.dataset.variantDisc = <?= json_encode(floatval($item['discountvariant'])) ?>; // variant % off
+                }
+            })();
+            <?php endforeach; ?>
+
+                // 2. PAGKATAPOS lang mag-refresh ng rows at subtotal
+    const seenProducts = new Set();
+    document.querySelectorAll('.cart-row').forEach(row => {
+        const pid = row.dataset.productId;
+        if (pid && !seenProducts.has(pid)) {
+            seenProducts.add(pid);
+            refreshProductRows(pid);
+        }
+    });
+        });
     </script>
 
 </body>

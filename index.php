@@ -76,6 +76,7 @@ $adminRoutes = [
     'ps-posupplier',
     'ps-supplierlink',
     'ps-promotionwebsite',
+    'ps-quantitylimit',
     'ps-backend-insertproduct-handler',
     'ps-backend-category-helpers',
     'ps-backend-category-handler',
@@ -97,6 +98,9 @@ $adminRoutes = [
     'ps-backendsupplierlink-save',
     'ps-backendupdate-category-image',
     'ps-backendupdate-subcategory-image',
+    'productlimitorder-fetch',
+    'productlimitorder-save',
+
 
     //accounting
     'accounting',
@@ -269,6 +273,7 @@ $routes = [
     'ps-posupplier'                         => 'admin/ui-productspecialist/page-7/po-supplier.php',
     'ps-supplierlink'                       => 'admin/ui-productspecialist/page-7/po-supplier-products.php',
     'ps-promotionwebsite'                   => 'admin/ui-productspecialist/page-8/promotion-website.php',
+    'ps-quantitylimit'                      => 'admin/ui-productspecialist/page-9/productlimitorder-main.php',
     'ps-backend-insertproduct-handler'      => 'admin/ui-productspecialist/backend/backend-page-2/specialist-insertproduct-handler.php',
     'ps-backend-category-helpers'           => 'admin/ui-productspecialist/backend/backend-page-2/specialist-insertproduct-helpers.php',
     'ps-backend-category-handler'           => 'admin/ui-productspecialist/backend/backend-page-2/specialist-category-handler.php',
@@ -290,6 +295,8 @@ $routes = [
     'ps-backendsupplierlink-save'           => 'admin/ui-productspecialist/backend/backend-page-7/po-supplierlink-save.php',
     'ps-backendupdate-category-image'       => 'admin/ui-productspecialist/backend/backend-page-5/update-category-image.php',
     'ps-backendupdate-subcategory-image'    => 'admin/ui-productspecialist/backend/backend-page-5/update-subcategory-image.php',
+    'productlimitorder-fetch'               => 'admin/ui-productspecialist/backend/backend-page-9/productlimitorder-fetch.php',
+    'productlimitorder-save'                => 'admin/ui-productspecialist/backend/backend-page-9/productlimitorder-save.php',
 
     //accounting
     'accounting'                            => 'admin/ui-accountant/page-1/accountant-main.php',

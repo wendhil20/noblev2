@@ -2,6 +2,7 @@
 // mainproductview.php
 
 include ROOT_PATH . '/network/connect.php';
+include ROOT_PATH . '/user/ui-page/backend/backend-page-2/productqtydiscount-helper.php'; // getProductQtyLimit(), getProductQtyTiers()
 
 $uploadUrl = BASE_URL . '/uploads/';
 
@@ -105,6 +106,21 @@ foreach ($reviews as $r) {
 $isLoggedIn = !empty($_SESSION['user_id']);
 $min = floatval($priceRange['min_price'] ?? 0);
 $max = floatval($priceRange['max_price'] ?? 0);
+
+// ─── Qty limit + tiered discount (PER PRODUCT — same sa lahat ng color/size) ──
+$productQtyLimit = getProductQtyLimit($conn, $productId);   // 0 = walang limit
+$qtyTiers = getProductQtyTiers($conn, $productId);  // [{min_qty,max_qty,discount_percent}, ...]
+
+// Ilan na ba ang nasa cart ng user para sa product na ito (across lahat ng color/size)?
+// Ito ang gagamitin para malaman kung gaano pa puede idagdag bago maabot ang limit.
+$currentProductCartQty = 0;
+if ($isLoggedIn) {
+    $cartQtyStmt = $conn->prepare("SELECT COALESCE(SUM(quantity), 0) as total FROM noblecart WHERE user_id = ? AND product_id = ?");
+    $cartQtyStmt->bind_param("ii", $_SESSION['user_id'], $productId);
+    $cartQtyStmt->execute();
+    $currentProductCartQty = intval($cartQtyStmt->get_result()->fetch_assoc()['total'] ?? 0);
+    $cartQtyStmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -157,9 +173,9 @@ $max = floatval($priceRange['max_price'] ?? 0);
     <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
 
         <a href="javascript:void(0)" onclick="goBackSafe()"
-    class="inline-flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-amber-500 transition mb-4 md:mb-6">
-    <i class="fa-solid fa-arrow-left text-xs"></i> Back
-</a>
+            class="inline-flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-amber-500 transition mb-4 md:mb-6">
+            <i class="fa-solid fa-arrow-left text-xs"></i> Back
+        </a>
 
         <div class="bg-white overflow-hidden rounded-xl md:rounded-2xl border border-gray-100 shadow-sm">
             <div class="grid grid-cols-1 md:grid-cols-2">
@@ -210,15 +226,18 @@ $max = floatval($priceRange['max_price'] ?? 0);
                     </h1>
 
                     <?php if ($totalReviews > 0): ?>
-                        <button type="button" onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
+                        <button type="button"
+                            onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
                             class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
                             <span class="flex items-center gap-0.5">
                                 <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                                    <i
+                                        class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
                                 <?php endfor; ?>
                             </span>
                             <span class="text-xs text-gray-500 font-medium"><?= number_format($avgRating, 1) ?></span>
-                            <span class="text-xs text-gray-400">(<?= $totalReviews ?> review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
+                            <span class="text-xs text-gray-400">(<?= $totalReviews ?>
+                                review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
                         </button>
                     <?php endif; ?>
 
@@ -280,7 +299,7 @@ $max = floatval($priceRange['max_price'] ?? 0);
                         <div class="mb-4 md:mb-5 hidden" id="qty-section">
                             <p
                                 class="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 md:mb-2">
-                                Quantity
+                                Quantity <span id="qty-limit-note" class="text-gray-400 normal-case font-normal"></span>
                             </p>
                             <div class="flex items-center gap-3">
                                 <button type="button" onclick="changeQty(-1)" id="qty-minus"
@@ -295,6 +314,11 @@ $max = floatval($priceRange['max_price'] ?? 0);
                                 </button>
                                 <span id="qty-max-label" class="text-[10px] md:text-xs text-gray-400 ml-1"></span>
                             </div>
+                        </div>
+
+                        <!-- Quantity Discount Hint -->
+                        <div id="qty-discount-hint"
+                            class="hidden mb-4 md:mb-5 -mt-2 text-[11px] md:text-xs bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-amber-700">
                         </div>
                     <?php endif; ?>
 
@@ -388,15 +412,18 @@ $max = floatval($priceRange['max_price'] ?? 0);
                 <?php else: ?>
 
                     <!-- Summary -->
-                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-6 border-b border-gray-100 mb-6">
+                    <div
+                        class="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-6 border-b border-gray-100 mb-6">
                         <div class="text-center shrink-0">
                             <p class="text-3xl md:text-4xl font-bold text-gray-900"><?= number_format($avgRating, 1) ?></p>
                             <div class="flex items-center justify-center gap-0.5 mt-1">
                                 <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i class="fa-star text-sm <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                                    <i
+                                        class="fa-star text-sm <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
                                 <?php endfor; ?>
                             </div>
-                            <p class="text-xs text-gray-400 mt-1"><?= $totalReviews ?> review<?= $totalReviews !== 1 ? 's' : '' ?></p>
+                            <p class="text-xs text-gray-400 mt-1"><?= $totalReviews ?>
+                                review<?= $totalReviews !== 1 ? 's' : '' ?></p>
                         </div>
 
                         <div class="flex-1 w-full space-y-1.5">
@@ -417,7 +444,8 @@ $max = floatval($priceRange['max_price'] ?? 0);
                     <div class="space-y-5">
                         <?php foreach ($reviews as $r): ?>
                             <div class="flex gap-3">
-                                <div class="w-9 h-9 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                                <div
+                                    class="w-9 h-9 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                     <?php if (!empty($r['avatar'])): ?>
                                         <img src="<?= htmlspecialchars($r['avatar']) ?>" class="w-full h-full object-cover">
                                     <?php else: ?>
@@ -433,7 +461,8 @@ $max = floatval($priceRange['max_price'] ?? 0);
                                     </div>
                                     <div class="flex items-center gap-0.5 mt-0.5 mb-1.5">
                                         <?php for ($i = 1; $i <= 5; $i++): ?>
-                                            <i class="fa-star text-xs <?= $i <= (int) $r['rating'] ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                                            <i
+                                                class="fa-star text-xs <?= $i <= (int) $r['rating'] ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
                                         <?php endfor; ?>
                                     </div>
                                     <?php if (!empty($r['comment'])): ?>
@@ -535,6 +564,12 @@ $max = floatval($priceRange['max_price'] ?? 0);
             : '<span class="text-xs md:text-sm text-gray-400 italic">Price not set</span>'
         ) ?>;
 
+        // ─── Per-product qty limit + tiered discount data (galing sa PHP) ───
+        const productQtyLimit = <?= json_encode($productQtyLimit) ?>;   // 0 = walang limit
+        const qtyTiers = <?= json_encode($qtyTiers) ?>;                  // [{min_qty,max_qty,discount_percent}, ...]
+        let productCartQty = <?= json_encode($currentProductCartQty) ?>; // mutable — updated after successful add
+        // ───────────────────────────────────────────────────────────────────
+
         let selectedColorIndex = null;
         let selectedColorId = null;
         let selectedSizeName = null;
@@ -550,15 +585,63 @@ $max = floatval($priceRange['max_price'] ?? 0);
             color.variants.forEach(v => { variantMap[i][v.sizename] = v; });
         });
 
-        function updateFinalPrice(unitPrice) {
-            const el = document.getElementById('final-price-display');
-            if (!el) return;
-            if (!unitPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
-            const total = unitPrice * selectedQty;
-            el.classList.remove('hidden');
-            el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span>
-        <span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+        // ─── Qty Limit / Tier Discount helpers ──────────────────────────
+        function isLimitReached() {
+            return productQtyLimit > 0 && productCartQty >= productQtyLimit;
         }
+
+        function getEffectiveMaxQty() {
+            const stockMax = selectedVariantStock > 0 ? selectedVariantStock : 1;
+            if (productQtyLimit <= 0) return stockMax;
+            const remainingByLimit = Math.max(0, productQtyLimit - productCartQty);
+            if (remainingByLimit <= 0) return 1; // wala na talagang puedeng idagdag; hawak ito ng updateCartBtn/resolveVariant
+            return Math.min(stockMax, remainingByLimit);
+        }
+
+        function resolveTierDiscount(qty) {
+            for (const t of qtyTiers) {
+                if (qty >= parseInt(t.min_qty, 10) && qty <= parseInt(t.max_qty, 10)) {
+                    return parseFloat(t.discount_percent) || 0;
+                }
+            }
+            return 0;
+        }
+
+        function refreshDiscountHint() {
+            const hint = document.getElementById('qty-discount-hint');
+            if (!hint) return;
+            hint.classList.add('hidden'); // laging itago, wag na ipakita
+        }
+        // ──────────────────────────────────────────────────────────────────
+
+        function updateFinalPrice(unitPrice) {
+    const el = document.getElementById('final-price-display');
+    if (!el) return;
+    if (!unitPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
+
+    const subtotal = unitPrice * selectedQty;
+    const tierDiscountPercent = resolveTierDiscount(selectedQty);
+    const discountAmount = subtotal * (tierDiscountPercent / 100);
+    const total = subtotal - discountAmount;
+
+    // ── I-update ang price-display sa taas kung may tier discount ──
+    const priceDisplay = document.getElementById('price-display');
+    if (priceDisplay) {
+        const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
+        if (tierDiscountPercent > 0) {
+            priceDisplay.innerHTML = `
+                <span class="text-base md:text-xl font-bold text-gray-900">₱${discountedUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+        } else {
+            priceDisplay.innerHTML = `<span class="text-base md:text-xl font-bold text-gray-900">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+        }
+    }
+
+    el.classList.remove('hidden');
+
+    // ── Total — plain lang, walang discount badge ──
+    el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span><span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+}
 
         // ─── Quantity ──────────────────────────────────────────────────
         function showQtySection() {
@@ -566,6 +649,7 @@ $max = floatval($priceRange['max_price'] ?? 0);
             const el = document.getElementById('qty-section');
             if (el) el.classList.remove('hidden');
             refreshQtyUI();
+            refreshDiscountHint();
         }
 
         function hideQtySection() {
@@ -578,12 +662,15 @@ $max = floatval($priceRange['max_price'] ?? 0);
             if (lbl) lbl.textContent = '';
             const fp = document.getElementById('final-price-display');
             if (fp) fp.classList.add('hidden');
+            const hint = document.getElementById('qty-discount-hint');
+            if (hint) hint.classList.add('hidden');
         }
 
         function changeQty(delta) {
-            const max = selectedVariantStock > 0 ? selectedVariantStock : 1;
+            const max = getEffectiveMaxQty();
             selectedQty = Math.max(1, Math.min(selectedQty + delta, max));
             refreshQtyUI();
+            refreshDiscountHint();
             // i-recompute ang final price gamit ang current unit price
             const v = variantMap[selectedColorIndex]?.[selectedSizeName];
             if (v) {
@@ -595,16 +682,27 @@ $max = floatval($priceRange['max_price'] ?? 0);
         }
 
         function refreshQtyUI() {
-            const max = selectedVariantStock > 0 ? selectedVariantStock : 1;
+            const max = getEffectiveMaxQty();
             const disp = document.getElementById('qty-display');
             const minus = document.getElementById('qty-minus');
             const plus = document.getElementById('qty-plus');
             const lbl = document.getElementById('qty-max-label');
+            const limitNote = document.getElementById('qty-limit-note');
 
             if (disp) disp.textContent = selectedQty;
             if (minus) minus.disabled = selectedQty <= 1;
             if (plus) plus.disabled = selectedQty >= max;
             if (lbl) lbl.textContent = max > 1 ? `max ${max}` : '';
+
+            if (limitNote) {
+                if (productQtyLimit > 0) {
+                    limitNote.textContent = productCartQty > 0
+                        ? `— max ${productQtyLimit} per order (${productCartQty} already in cart)`
+                        : `— max ${productQtyLimit} per order`;
+                } else {
+                    limitNote.textContent = '';
+                }
+            }
         }
         // ──────────────────────────────────────────────────────────────
 
@@ -760,13 +858,15 @@ $max = floatval($priceRange['max_price'] ?? 0);
                     }
                     document.getElementById('price-display').innerHTML = html;
 
-                    // ── Final price (qty × discounted price) ──
+                    // ── Final price (qty × discounted price, kasama ang qty-tier discount) ──
                     updateFinalPrice(discounted);
                 }
 
                 updateStockLabel();
 
-                if (selectedVariantStock > 0) {
+                // Kung naabot na ang max quantity per order ng product, hindi na puedeng
+                // magdagdag pa kahit may stock pa — itago ang qty selector.
+                if (selectedVariantStock > 0 && !isLimitReached()) {
                     showQtySection();
                 } else {
                     hideQtySection();
@@ -789,6 +889,10 @@ $max = floatval($priceRange['max_price'] ?? 0);
                     btn.disabled = true;
                     btn.className = `${base} bg-red-50 text-red-400 cursor-not-allowed`;
                     btn.innerHTML = '<i class="fa-solid fa-ban mr-2"></i> Out of stock';
+                } else if (isLimitReached()) {
+                    btn.disabled = true;
+                    btn.className = `${base} bg-amber-50 text-amber-600 cursor-not-allowed`;
+                    btn.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-2"></i> Max ${productQtyLimit} per order reached`;
                 } else {
                     btn.disabled = false;
                     btn.className = `${base} bg-amber-500 hover:bg-amber-600 text-white cursor-pointer`;
@@ -818,6 +922,12 @@ $max = floatval($priceRange['max_price'] ?? 0);
                 return;
             }
 
+            if (isLimitReached()) {
+                showToast('warning', `Max ${productQtyLimit} pcs lang ang pwedeng bilhin per order para sa product na ito.`);
+                updateCartBtn();
+                return;
+            }
+
             const qty = selectedQty || 1;
 
             btn.disabled = true;
@@ -834,12 +944,19 @@ $max = floatval($priceRange['max_price'] ?? 0);
                 const data = await res.json();
 
                 if (data.ok) {
-                    showToast('success', data.msg || 'Added to cart!');
+                    showToast(data.limit_reached ? 'warning' : 'success', data.msg || 'Added to cart!');
+
                     const counter = document.getElementById('cart-count');
                     if (counter && data.cart_count !== undefined) {
                         counter.textContent = data.cart_count;
                         counter.classList.remove('hidden');
                     }
+
+                    // I-sync ang total product qty sa cart, galing sa backend (source of truth)
+                    if (data.product_qty_in_cart !== undefined) {
+                        productCartQty = data.product_qty_in_cart;
+                    }
+
                     if (data.remaining_stock !== undefined) {
                         selectedVariantStock = data.remaining_stock;
                         updateStockLabel();
@@ -851,10 +968,14 @@ $max = floatval($priceRange['max_price'] ?? 0);
                             const sizeBtn = document.getElementById('size-btn-' + selectedSizeName);
                             if (sizeBtn) { sizeBtn.classList.add('unavailable'); sizeBtn.disabled = true; }
                             hideQtySection();
+                        } else if (isLimitReached()) {
+                            // naabot na ang max per order kasunod ng add na ito
+                            hideQtySection();
                         } else {
                             // reset qty to 1 after successful add, refresh max
                             selectedQty = 1;
                             refreshQtyUI();
+                            refreshDiscountHint();
                         }
                     }
                 } else {
@@ -865,6 +986,9 @@ $max = floatval($priceRange['max_price'] ?? 0);
                         hideQtySection();
                         const sizeBtn = document.getElementById('size-btn-' + selectedSizeName);
                         if (sizeBtn) { sizeBtn.classList.add('unavailable'); sizeBtn.disabled = true; }
+                    } else if (data.limit_reached) {
+                        if (data.product_qty_in_cart !== undefined) productCartQty = data.product_qty_in_cart;
+                        hideQtySection();
                     }
                 }
             } catch (e) {
@@ -881,7 +1005,9 @@ $max = floatval($priceRange['max_price'] ?? 0);
 
             icon.innerHTML = type === 'success'
                 ? '<i class="fa-solid fa-circle-check text-green-500"></i>'
-                : '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
+                : type === 'warning'
+                    ? '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>'
+                    : '<i class="fa-solid fa-circle-exclamation text-red-500"></i>';
             text.textContent = msg;
 
             toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
@@ -943,12 +1069,12 @@ $max = floatval($priceRange['max_price'] ?? 0);
         }
 
         function goBackSafe() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else {
-        window.location.href = <?= json_encode(BASE_URL . '/') ?>;
-    }
-}
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = <?= json_encode(BASE_URL . '/') ?>;
+            }
+        }
     </script>
     <?php include ROOT_PATH . '/user/navigation/bottom.php'; ?>
 </body>

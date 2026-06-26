@@ -100,6 +100,12 @@ function isActive(string $path): string
 
             <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest px-3 pb-2 pt-4">Management</p>
 
+            <a href="<?= BASE_URL ?>/ps-quantitylimit"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-quantitylimit') ?>">
+                <i class="fa-solid fa-ruler-combined w-4 text-center"></i>
+                Quantity Limit
+            </a>
+
             <a href="<?= BASE_URL ?>/ps-promotion"
                 class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-promotion') ?>">
                 <i class="fa-solid fa-bullhorn w-4 text-center"></i>
