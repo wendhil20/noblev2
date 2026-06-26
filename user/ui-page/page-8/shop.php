@@ -412,7 +412,7 @@ function buildPageUrl(array $baseParams, int $pageNum): string
             </aside>
 
             <!-- ═══════════════ PRODUCT GRID ═══════════════ -->
-            <div class="flex-1">
+            <div class="flex-1 flex flex-col">
 
                 <div class="flex items-center justify-between mb-5">
                     <h1 class="text-lg md:text-xl font-bold text-gray-900">Shop</h1>
@@ -427,12 +427,13 @@ function buildPageUrl(array $baseParams, int $pageNum): string
                 </div>
 
                 <?php if (empty($products)): ?>
-                    <div class="text-center py-20 text-gray-400">
+                    <div class="flex-1 text-center py-20 text-gray-400" id="products-area">
                         <i class="fa-solid fa-box-open text-5xl mb-4 block"></i>
                         <p class="text-lg">No products match your filters.</p>
                     </div>
                 <?php else: ?>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
+                    <div class="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 content-start"
+                        id="products-area">
                         <?php foreach ($products as $p):
                             $cardColors = $productColorData[$p['id']] ?? [];
                             $visibleColors = array_slice($cardColors, 0, $MAX_SWATCHES);
@@ -546,49 +547,44 @@ function buildPageUrl(array $baseParams, int $pageNum): string
                     </div>
                 <?php endif; ?>
 
-            </div>
 
-            <!-- Pagination -->
-            <?php if ($totalPages > 1): ?>
-                <?php
-                $baseParams = $_GET;
-                function buildPageUrl($baseParams, $pageNum)
-                {
-                    $baseParams['page'] = $pageNum;
-                    return BASE_URL . '/shop?' . http_build_query($baseParams);
-                }
-                ?>
-                <div class="flex items-center justify-center gap-1.5 mt-8">
+                <!-- Pagination -->
+                <?php if ($totalPages > 1): ?>
+                    <?php $baseParams = $_GET; ?>
+                    <div class="flex items-center justify-center gap-1.5 mt-8">
 
-                    <!-- Prev -->
-                    <a href="<?= $page > 1 ? buildPageUrl($baseParams, $page - 1) : '#' ?>" class="w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
+                        <!-- Prev -->
+                        <a href="<?= $page > 1 ? buildPageUrl($baseParams, $page - 1) : '#' ?>" class="page-link w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
                                       <?= $page > 1
                                           ? 'border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300'
                                           : 'border-gray-100 text-gray-300 cursor-not-allowed pointer-events-none' ?>">
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </a>
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </a>
 
-                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                        <a href="<?= buildPageUrl($baseParams, $i) ?>"
-                            class="w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition
+                        <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            <a href="<?= buildPageUrl($baseParams, $i) ?>"
+                                class="page-link w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition
                                           <?= $i === $page
                                               ? 'bg-amber-500 text-white'
                                               : 'border border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300' ?>">
-                            <?= $i ?>
-                        </a>
-                    <?php endfor; ?>
+                                <?= $i ?>
+                            </a>
+                        <?php endfor; ?>
 
-                    <!-- Next -->
-                    <a href="<?= $page < $totalPages ? buildPageUrl($baseParams, $page + 1) : '#' ?>" class="w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
+                        <!-- Next -->
+                        <a href="<?= $page < $totalPages ? buildPageUrl($baseParams, $page + 1) : '#' ?>" class="page-link w-8 h-8 flex items-center justify-center rounded-lg border text-xs transition
                                       <?= $page < $totalPages
                                           ? 'border-gray-200 text-gray-500 hover:bg-amber-50 hover:border-amber-300'
                                           : 'border-gray-100 text-gray-300 cursor-not-allowed pointer-events-none' ?>">
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </a>
-                </div>
-            <?php endif; ?>
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                    </div>
+                <?php endif; ?>
+
+            </div>
 
         </div>
+
 
     </div>
 
@@ -886,6 +882,50 @@ function buildPageUrl(array $baseParams, int $pageNum): string
                 toast.classList.remove('opacity-100', 'translate-y-0');
             }, 3000);
         }
+
+        // ── Skeleton loading on pagination click ────────────────────────────
+        function buildSkeletonCards(count) {
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                html += `
+                <div class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+                    <div class="aspect-square bg-gray-200"></div>
+                    <div class="p-2 md:p-3 space-y-2">
+                        <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+                        <div class="h-2 bg-gray-200 rounded w-1/2"></div>
+                        <div class="h-4 bg-gray-200 rounded w-1/3 mt-2"></div>
+                        <div class="h-7 bg-gray-200 rounded mt-2"></div>
+                    </div>
+                </div>`;
+            }
+            return html;
+        }
+
+        document.querySelectorAll('.page-link').forEach(link => {
+            link.addEventListener('click', function (e) {
+                // ignore disabled (Prev/Next at edges)
+                if (this.classList.contains('pointer-events-none') || this.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    return;
+                }
+
+                e.preventDefault();
+                const targetUrl = this.href;
+
+                const area = document.getElementById('products-area');
+                if (area) {
+                    area.className = 'flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 content-start';
+                    area.innerHTML = buildSkeletonCards(8);
+                }
+
+                // scroll to top so the user sees the skeleton
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                setTimeout(() => {
+                    window.location.href = targetUrl;
+                }, 1000);
+            });
+        });
     </script>
 
 </body>
