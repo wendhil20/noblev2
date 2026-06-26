@@ -8,6 +8,27 @@ include ROOT_PATH . '/admin/authentication/index-roles.php';
 $allowedRoles = [ROLE_PRODUCTSPECIALIST];
 include ROOT_PATH . '/admin/authentication/index-roleguard.php';
 
+// ── Toggle "Most Popular" flag (AJAX) ───────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_popular'])) {
+    header('Content-Type: application/json');
+
+    $productId = intval($_POST['product_id'] ?? 0);
+    $isPopular = intval($_POST['is_popular'] ?? 0) ? 1 : 0;
+
+    if (!$productId) {
+        echo json_encode(['ok' => false, 'msg' => 'Invalid product.']);
+        exit;
+    }
+
+    $stmt = $conn->prepare("UPDATE nobleproduct SET is_popular = ? WHERE id = ?");
+    $stmt->bind_param("ii", $isPopular, $productId);
+    $stmt->execute();
+    $stmt->close();
+
+    echo json_encode(['ok' => true]);
+    exit;
+}
+
 // ── Load all products with color + variant counts ──────────────────────────
 $currentUserId = $_SESSION['account_id'] ?? 0;
 
@@ -20,6 +41,7 @@ $stmt = $conn->prepare("
         p.category,
         p.description,
         creator.name AS created_by_name,
+        p.is_popular,
         COUNT(DISTINCT c.id)  AS color_count,
         COUNT(DISTINCT v.id)  AS variant_count
     FROM nobleproduct p
@@ -119,13 +141,14 @@ $uploadUrl = BASE_URL . '/uploads/'; // public URL prefix for product images
                         <th class="text-center px-5 py-3">Colors</th>
                         <th class="text-center px-5 py-3">Variants</th>
                         <th class="text-left px-5 py-3">Added by</th>
+                        <th class="text-center px-5 py-3">Popular</th>
                         <th class="text-right px-5 py-3">Action</th>
                     </tr>
                 </thead>
                 <tbody id="products-tbody">
                     <?php if (empty($products)): ?>
                         <tr>
-                            <td colspan="7" class="px-5 py-12 text-center text-gray-400 text-sm">
+                            <td colspan="8" class="px-5 py-12 text-center text-gray-400 text-sm">
                                 <i class="fa-solid fa-box-open text-3xl mb-3 block text-gray-300"></i>
                                 No products yet. <a href="<?= BASE_URL ?>/ps-insertproduct"
                                     class="text-amber-500 hover:underline">Add one</a>.
@@ -205,6 +228,20 @@ $uploadUrl = BASE_URL . '/uploads/'; // public URL prefix for product images
                                     <?php endif; ?>
                                 </td>
 
+                                <!-- Popular toggle -->
+                                <td class="px-5 py-3.5 text-center">
+                                    <label class="relative inline-block w-9 h-5 cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer popular-toggle"
+                                            data-product-id="<?= $p['id'] ?>"
+                                            <?= $p['is_popular'] ? 'checked' : '' ?>>
+                                        <div
+                                            class="w-9 h-5 bg-gray-200 rounded-full peer-checked:bg-amber-500 transition-colors duration-200">
+                                        </div>
+                                        <div
+                                            class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 peer-checked:translate-x-4">
+                                        </div>
+                                    </label>
+                                </td>
 
                                 <!-- Action -->
                                 <td class="px-5 py-3.5 text-right">
@@ -263,6 +300,36 @@ $uploadUrl = BASE_URL . '/uploads/'; // public URL prefix for product images
             searchInput.value = '';
             categoryFilter.value = '';
             filterTable();
+        });
+
+        // ── Popular toggle (AJAX) ────────────────────────────────────────────
+        document.querySelectorAll('.popular-toggle').forEach(toggle => {
+            toggle.addEventListener('change', async function () {
+                const productId = this.dataset.productId;
+                const isPopular = this.checked ? 1 : 0;
+
+                try {
+                    const fd = new FormData();
+                    fd.append('toggle_popular', '1');
+                    fd.append('product_id', productId);
+                    fd.append('is_popular', isPopular);
+
+                    const res = await fetch(window.location.pathname + window.location.search, {
+                        method: 'POST',
+                        body: fd
+                    });
+                    const data = await res.json();
+
+                    if (!data.ok) {
+                        // revert on failure
+                        this.checked = !this.checked;
+                        alert(data.msg || 'Failed to update.');
+                    }
+                } catch (e) {
+                    this.checked = !this.checked;
+                    alert('Something went wrong.');
+                }
+            });
         });
     </script>
 </body>

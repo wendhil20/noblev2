@@ -3,7 +3,7 @@
 
 $uploadUrl = BASE_URL . '/uploads/';
 
-// Fetch products with price range from variants + average rating
+// Fetch products marked as "popular" by the product specialist
 $products = [];
 $result = $conn->query("
     SELECT
@@ -20,6 +20,7 @@ $result = $conn->query("
     LEFT JOIN nobleproductcolor c ON c.product_id = p.id
     LEFT JOIN nobleproductvariant v ON v.color_id = c.id
     LEFT JOIN noblereview r ON r.product_id = p.id
+    WHERE p.is_popular = 1
     GROUP BY p.id
     ORDER BY p.created_at DESC
 ");
@@ -37,7 +38,7 @@ while ($row = $result->fetch_assoc())
 <?php if (empty($products)): ?>
     <div class="text-center py-20 text-gray-400">
         <i class="fa-solid fa-box-open text-5xl mb-4 block"></i>
-        <p class="text-lg">No products available yet.</p>
+        <p class="text-lg">No popular products yet.</p>
     </div>
 <?php else: ?>
 

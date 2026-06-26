@@ -21,7 +21,8 @@ $newResult = $conn->query("
     LEFT JOIN noblereview r ON r.product_id = p.id
     WHERE p.created_at >= (NOW() - INTERVAL 3 DAY)
     GROUP BY p.id
-    ORDER BY p.created_at DESC
+    ORDER BY RAND()
+    LIMIT 10
 ");
 while ($row = $newResult->fetch_assoc())
     $newArrivals[] = $row;
