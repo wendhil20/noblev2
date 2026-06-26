@@ -48,7 +48,7 @@ while ($row = $promoResult->fetch_assoc())
                                 <?php endif; ?>
                                 <!-- Gradient overlay + text -->
                                 <div class="absolute inset-0 flex flex-col justify-end
-                                bg-gradient-to-t from-black/30 via-black/20 to-transparent
+                                bg-gradient-to-t from-black/10 via-black/20 to-transparent
                                 px-4 md:px-14 pb-3 md:pb-8">
                                     <p
                                         class="text-white font-bold text-[11px] md:text-3xl leading-snug drop-shadow-lg line-clamp-1">
