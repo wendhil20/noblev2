@@ -7,12 +7,15 @@ $payload   = file_get_contents('php://input');
 $sigHeader = $_SERVER['HTTP_PAYMONGO_SIGNATURE'] ?? '';
 $secret    = $_ENV['PAYMONGO_WEBHOOK_SECRET'] ?? getenv('PAYMONGO_WEBHOOK_SECRET');
 
+
 // ── Verify signature ──────────────────────────────────────────────────────────
 // PayMongo sends: t=timestamp,te=test_sig,li=live_sig
 $parts = [];
 foreach (explode(',', $sigHeader) as $part) {
-    [$k, $v] = explode('=', $part, 2);
-    $parts[$k] = $v;
+    $kv = explode('=', $part, 2);
+    if (count($kv) === 2) {
+        $parts[$kv[0]] = $kv[1];
+    }
 }
 
 $timestamp = $parts['t'] ?? '';
@@ -21,6 +24,7 @@ $expected  = hash_hmac('sha256', $toSign, $secret);
 $received  = $parts['li'] ?? $parts['te'] ?? '';
 
 if (!hash_equals($expected, $received)) {
+    error_log('PayMongo webhook: invalid signature. Header was: ' . $sigHeader);
     http_response_code(401);
     exit('Invalid signature');
 }
@@ -34,11 +38,19 @@ if ($type !== 'checkout_session.payment.paid') {
     exit('Ignored');
 }
 
-$metadata        = $event['data']['attributes']['data']['attributes']['metadata'] ?? [];
-$userId          = intval($metadata['user_id'] ?? 0);
-$pendingOrderId  = intval($metadata['pending_order_id'] ?? 0);
+// ── FIX: try both possible metadata locations ─────────────────────────────────
+// PayMongo's nested resource shape can vary; check the deeper path first,
+// then fall back to the shallower one.
+$metadata = $event['data']['attributes']['data']['attributes']['metadata']
+    ?? $event['data']['attributes']['metadata']
+    ?? [];
+
+$userId         = intval($metadata['user_id'] ?? 0);
+$pendingOrderId = intval($metadata['pending_order_id'] ?? 0);
 
 if (!$userId || !$pendingOrderId) {
+    // FIX: log the full payload so we can see exactly where metadata actually lives
+    error_log('PayMongo webhook: missing metadata. Payload: ' . $payload);
     http_response_code(200);
     exit('Missing user_id or pending_order_id in metadata');
 }
@@ -51,6 +63,7 @@ $pending = $s->get_result()->fetch_assoc();
 $s->close();
 
 if (!$pending) {
+    error_log("PayMongo webhook: no pending order found for id $pendingOrderId, user $userId");
     http_response_code(200);
     exit('No pending order found for id ' . $pendingOrderId);
 }
@@ -80,6 +93,7 @@ try {
         $stockStmt->execute();
         if ($stockStmt->affected_rows === 0) {
             $conn->rollback();
+            error_log("PayMongo webhook: out of stock for variant $vId, pending order $pendingOrderId");
             http_response_code(200);
             exit('Out of stock for variant ' . $vId);
         }
@@ -100,7 +114,7 @@ try {
 
     $truckMaxVol  = floatval($pending['truck_max_vol'] ?? 0);
     $truckMaxWt   = floatval($pending['truck_max_wt']  ?? 0);
-    $paymentMethod = $pending['payment_type'] ?? 'paymongo'; // ← carry over from the pending order's payment_type column
+    $paymentMethod = $pending['payment_type'] ?? 'paymongo';
 
     $ins->bind_param(
         "sisssissssddsisddddddds",
@@ -126,7 +140,7 @@ try {
         $pending['subtotal'],
         $pending['vat_amount'],
         $pending['grand_total'],
-        $paymentMethod // ← bind the value to the existing payment_method column
+        $paymentMethod
     );
     $ins->execute();
     $orderId = $conn->insert_id;
@@ -161,8 +175,16 @@ try {
     // Clear cart
     $conn->query("DELETE FROM noblecart WHERE user_id = " . intval($userId));
 
-    // Mark pending order as used
-    $conn->query("UPDATE noblependingorder SET used = 1, order_id = " . intval($orderId) . " WHERE id = " . intval($pending['id']));
+    // Mark pending order as used, AND set payment_status/final_order_id
+    // so that check-qrph.php polling actually sees it as paid.
+    $conn->query("
+        UPDATE noblependingorder
+        SET used = 1,
+            order_id = " . intval($orderId) . ",
+            payment_status = 'paid',
+            final_order_id = " . intval($orderId) . "
+        WHERE id = " . intval($pending['id'])
+    );
 
     // Notify Accounting
     $notifTitle  = 'New Order ' . $nhccReference;
@@ -182,6 +204,7 @@ try {
 
 } catch (Exception $e) {
     $conn->rollback();
+    error_log('PayMongo webhook error: ' . $e->getMessage());
     http_response_code(500);
     exit('Error: ' . $e->getMessage());
 }
