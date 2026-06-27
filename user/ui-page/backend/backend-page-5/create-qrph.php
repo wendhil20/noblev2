@@ -60,7 +60,7 @@ $finalGrand     = round($grandTotal + $deliveryFee, 2);
 $amountCentavos = intval(round($finalGrand * 100));
 
 // PayMongo minimum amount is ₱20.00 (2000 centavos)
-if ($amountCentavos < 2000) {
+if ($amountCentavos < 100) {
     echo json_encode(['ok' => false, 'error' => 'Order total is below the minimum payable amount (₱20.00).']);
     exit;
 }
