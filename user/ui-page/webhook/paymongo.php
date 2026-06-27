@@ -1,5 +1,5 @@
 <?php
-// handler/paymongo-webhook.php
+//paymongo.php
 
 include ROOT_PATH . '/network/connect.php';
 

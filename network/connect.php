@@ -1,5 +1,6 @@
 <?php
 // connect.php
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
 $isLocal = in_array($_SERVER['HTTP_HOST'], ['localhost', 'localhost:8000', '127.0.0.1', '127.0.0.1:8000']);
 
