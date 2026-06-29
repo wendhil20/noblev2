@@ -43,15 +43,16 @@ if ($isLocalhost) {
 
         $conn->begin_transaction();
         try {
-            // Deduct stock
+            // Deduct stock + increment sold count
             $stockStmt = $conn->prepare("
-                UPDATE nobleproductvariant SET stock = stock - ?
+                UPDATE nobleproductvariant
+                SET stock = stock - ?, sold = sold + ?
                 WHERE id = ? AND stock >= ?
             ");
             foreach ($cartItems as $item) {
                 $vId = intval($item['variant_id']);
                 $qty = intval($item['quantity']);
-                $stockStmt->bind_param("iii", $qty, $vId, $qty);
+                $stockStmt->bind_param("iiii", $qty, $qty, $vId, $qty);
                 $stockStmt->execute();
             }
             $stockStmt->close();

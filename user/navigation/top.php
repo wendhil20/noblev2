@@ -95,6 +95,11 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                     </a>
 
                     <?php if ($isLoggedIn): ?>
+                        <!-- Arrow/Caret (chat-bubble style, tumuturo pataas sa cart icon) -->
+                        <div class="absolute top-full right-4 mt-1 w-3 h-3 bg-black border-t border-l border-gray-100
+                    rotate-45 opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                    transition-all duration-200 z-50"></div>
+
                         <?php include ROOT_PATH . '/user/navigation/cart-dropdown.php'; ?>
                     <?php endif; ?>
                 </div>
@@ -116,6 +121,17 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                                 </div>
                             <?php endif; ?>
                         </button>
+
+                        <!-- Overlay backdrop -->
+                        <div class="fixed top-16 left-0 right-0 bottom-0 bg-black/40 z-30 opacity-0 invisible
+                group-hover:opacity-100 group-hover:visible
+                transition-opacity duration-200 pointer-events-none"></div>
+
+                        <!-- Arrow/Caret (chat-bubble style, tumuturo pataas sa avatar) -->
+                        <div class="absolute top-full right-4 mt-1 w-3 h-3 bg-black border-t border-l border-gray-100
+                rotate-45 opacity-0 invisible group-hover:opacity-100 group-hover:visible
+                transition-all duration-200 z-50"></div>
+
 
                         <!-- Dropdown Panel -->
                         <div

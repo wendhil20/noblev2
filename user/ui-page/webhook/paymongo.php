@@ -98,15 +98,19 @@ $nhccReference = 'NHCC-' . $year . '-' . str_pad($lastNum + 1, 3, '0', STR_PAD_L
 // ── Transaction ───────────────────────────────────────────────────────────────
 $conn->begin_transaction();
 try {
-    // ── 1. Reserve stock ──────────────────────────────────────────────────────
-    $stockStmt = $conn->prepare("UPDATE nobleproductvariant SET stock = stock - ? WHERE id = ? AND stock >= ?");
+    // ── 1. Reserve stock + increment sold count ──────────────────────────────
+    $stockStmt = $conn->prepare("
+        UPDATE nobleproductvariant
+        SET stock = stock - ?, sold = sold + ?
+        WHERE id = ? AND stock >= ?
+    ");
     if (!$stockStmt) {
         throw new \RuntimeException('Prepare failed (stock update): ' . $conn->error);
     }
     foreach ($cartItems as $item) {
         $vId = intval($item['variant_id']);
         $qty = intval($item['quantity']);
-        $stockStmt->bind_param("iii", $qty, $vId, $qty);
+        $stockStmt->bind_param("iiii", $qty, $qty, $vId, $qty);
         $stockStmt->execute();
         if ($stockStmt->affected_rows === 0) {
             $conn->rollback();

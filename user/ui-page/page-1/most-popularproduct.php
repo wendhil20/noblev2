@@ -15,7 +15,13 @@ $result = $conn->query("
         MIN(v.pricesize) AS min_price,
         MAX(v.pricesize) AS max_price,
         AVG(r.rating) AS avg_rating,
-        COUNT(DISTINCT r.id) AS review_count
+        COUNT(DISTINCT r.id) AS review_count,
+        (
+            SELECT COALESCE(SUM(v2.sold), 0)
+            FROM nobleproductvariant v2
+            JOIN nobleproductcolor c2 ON c2.id = v2.color_id
+            WHERE c2.product_id = p.id
+        ) AS total_sold
     FROM nobleproduct p
     LEFT JOIN nobleproductcolor c ON c.product_id = p.id
     LEFT JOIN nobleproductvariant v ON v.color_id = c.id
@@ -26,6 +32,15 @@ $result = $conn->query("
 ");
 while ($row = $result->fetch_assoc())
     $products[] = $row;
+
+// Helper to format sold count (e.g. 1,200 -> "1.2K")
+function formatSoldCount($n) {
+    $n = intval($n);
+    if ($n >= 1000) {
+        return rtrim(rtrim(number_format($n / 1000, 1), '0'), '.') . 'K';
+    }
+    return number_format($n);
+}
 ?>
 
 <div class="mb-4 md:mb-8 mt-5">
@@ -101,18 +116,26 @@ while ($row = $result->fetch_assoc())
                                 </p>
                             <?php endif; ?>
 
-                            <!-- Rating -->
-                            <?php if (!empty($p['review_count']) && $p['review_count'] > 0): ?>
-                                <div class="flex items-center gap-1 mb-1">
-                                    <i class="fa-solid fa-star text-amber-400 text-[10px] md:text-xs"></i>
-                                    <span class="text-[10px] md:text-xs font-semibold text-gray-700">
-                                        <?= number_format($p['avg_rating'], 1) ?>
-                                    </span>
+                            <!-- Rating + Sold count -->
+                            <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                <?php if (!empty($p['review_count']) && $p['review_count'] > 0): ?>
+                                    <div class="flex items-center gap-1">
+                                        <i class="fa-solid fa-star text-amber-400 text-[10px] md:text-xs"></i>
+                                        <span class="text-[10px] md:text-xs font-semibold text-gray-700">
+                                            <?= number_format($p['avg_rating'], 1) ?>
+                                        </span>
+                                        <span class="text-[9px] md:text-xs text-gray-400">
+                                            (<?= (int) $p['review_count'] ?>)
+                                        </span>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($p['total_sold']) && $p['total_sold'] > 0): ?>
                                     <span class="text-[9px] md:text-xs text-gray-400">
-                                        (<?= (int) $p['review_count'] ?>)
+                                        <?= formatSoldCount($p['total_sold']) ?> sold
                                     </span>
-                                </div>
-                            <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
 
                             <!-- Price -->
                             <div class="mt-1 md:mt-2">
