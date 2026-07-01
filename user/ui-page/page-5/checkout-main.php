@@ -123,9 +123,11 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                     <!-- Cart items list -->
                     <div class="space-y-3 mb-5 max-h-64 overflow-y-auto pr-1">
                         <?php foreach ($cartItems as $item):
-                            $price = floatval($item['pricesize']);
-                            $discount = floatval($item['discountvariant']);
-                            $unitPrice = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                            $price            = floatval($item['pricesize']);
+                            $variantDiscount  = floatval($item['discountvariant']);
+                            $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+                            $discount         = max($variantDiscount, $promoDiscount);
+                            $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
                             $qty = intval($item['quantity']);
                             $pid = $item['product_id'];
 

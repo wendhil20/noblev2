@@ -294,6 +294,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         const ADD_TO_CART_URL = <?= json_encode(BASE_URL . '/cartadd') ?>;
         const PRODUCTS_URL = <?= json_encode(BASE_URL . '/shop-products') ?>;   // AJAX endpoint
         const LOW_STOCK_THRESHOLD = 5;
+        let promoInterval = null;
 
         // Merged from every AJAX response — persists across page changes
         let PRODUCT_DATA = {};
@@ -301,6 +302,35 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         // ── State ─────────────────────────────────────────────────────────────────────
         let currentPage = <?= max(1, intval($_GET['page'] ?? 1)) ?>;
         let fetchController = null;   // AbortController for in-flight requests
+
+         function startPromoTimers() {
+            if (promoInterval) clearInterval(promoInterval);
+
+            function tick() {
+                const now = Date.now();
+                document.querySelectorAll('.promo-timer').forEach(el => {
+                    const end = new Date(el.dataset.end).getTime();
+                    const diff = end - now;
+
+                    if (diff <= 0) {
+                        el.textContent = 'Ended';
+                        el.classList.add('opacity-50');
+                        return;
+                    }
+
+                    const d = Math.floor(diff / 86400000);
+                    const h = Math.floor((diff % 86400000) / 3600000);
+                    const m = Math.floor((diff % 3600000) / 60000);
+                    const s = Math.floor((diff % 60000) / 1000);
+
+                    el.textContent = d > 0
+                        ? `${d}d ${h}h left`
+                        : `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                });
+            }
+            tick();
+            promoInterval = setInterval(tick, 1000);
+        }
 
         // ── Collect filters into a URLSearchParams ────────────────────────────────────
         function collectFilters(page = 1) {
@@ -375,6 +405,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 Object.assign(PRODUCT_DATA, data.product_data ?? {});
 
                 area.innerHTML = data.html;
+                startPromoTimers(); 
 
                 const paginationArea = document.getElementById('pagination-area');
                 paginationArea.innerHTML = data.pagination ?? '';

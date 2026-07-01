@@ -62,12 +62,52 @@ foreach (array_unique(array_column($cartItems, 'product_id')) as $pid) {
     $tiersPerProduct[$pid] = getProductQtyTiers($conn, (int) $pid);
 }
 
+
+// ─── Active promos (date-based, per-color/size or general) para sa cart products ──
+$promosByProduct = []; // product_id => [ {color_id, sizename, discount_percent}, ... ]
+$cartProductIds = array_unique(array_column($cartItems, 'product_id'));
+if (!empty($cartProductIds)) {
+    $idPh = implode(',', array_fill(0, count($cartProductIds), '?'));
+    $idTypes = str_repeat('i', count($cartProductIds));
+    $promoStmt = $conn->prepare("
+        SELECT product_id, color_id, sizename, discount_percent
+        FROM nobleproductpromo
+        WHERE product_id IN ($idPh) AND NOW() BETWEEN start_date AND end_date
+    ");
+    $promoStmt->bind_param($idTypes, ...$cartProductIds);
+    $promoStmt->execute();
+    $promoRes = $promoStmt->get_result();
+    while ($row = $promoRes->fetch_assoc()) {
+        $promosByProduct[$row['product_id']][] = [
+            'color_id'         => $row['color_id'] !== null ? intval($row['color_id']) : null,
+            'sizename'         => $row['sizename'],
+            'discount_percent' => floatval($row['discount_percent']),
+        ];
+    }
+    $promoStmt->close();
+}
+
+// ─── Resolve best applicable promo discount para sa isang cart line ──────────
+function resolvePromoDiscount(array $promosByProduct, $productId, $colorId, $sizeName) {
+    $best = 0;
+    foreach ($promosByProduct[$productId] ?? [] as $promo) {
+        $colorMatches = $promo['color_id'] === null || $promo['color_id'] === intval($colorId);
+        $sizeMatches  = $promo['sizename'] === null || $promo['sizename'] === $sizeName;
+        if ($colorMatches && $sizeMatches && $promo['discount_percent'] > $best) {
+            $best = $promo['discount_percent'];
+        }
+    }
+    return $best;
+}
+
 // ─── Compute subtotal with tier discounts applied ─────────────────────────────
 $subtotal = 0;
 foreach ($cartItems as $item) {
-    $price      = floatval($item['pricesize']);
-    $discount   = floatval($item['discountvariant']);
-    $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+    $price            = floatval($item['pricesize']);
+    $variantDiscount  = floatval($item['discountvariant']);
+    $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+    $discount         = max($variantDiscount, $promoDiscount);
+    $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
     $qty        = intval($item['quantity']);
     $pid        = $item['product_id'];
 
@@ -156,9 +196,11 @@ $LOW_STOCK_THRESHOLD = 5;
                 <!-- Cart Items -->
                 <div class="lg:col-span-2 flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1" id="cart-list">
                     <?php foreach ($cartItems as $item):
-                        $price      = floatval($item['pricesize']);
-                        $discount   = floatval($item['discountvariant']);
-                        $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                        $price            = floatval($item['pricesize']);
+                        $variantDiscount  = floatval($item['discountvariant']);
+                        $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+                        $discount         = max($variantDiscount, $promoDiscount);
+                        $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
                         $qty        = intval($item['quantity']);
                         $pid        = $item['product_id'];
 
@@ -307,9 +349,11 @@ $LOW_STOCK_THRESHOLD = 5;
 
                         <div class="space-y-3 text-sm text-gray-600 mb-5" id="summary-lines">
                             <?php foreach ($cartItems as $item):
-                                $price      = floatval($item['pricesize']);
-                                $discount   = floatval($item['discountvariant']);
-                                $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                                $price            = floatval($item['pricesize']);
+                                $variantDiscount  = floatval($item['discountvariant']);
+                                $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+                                $discount         = max($variantDiscount, $promoDiscount);
+                                $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
                                 $qty        = intval($item['quantity']);
                                 $pid        = $item['product_id'];
 
@@ -693,16 +737,18 @@ $LOW_STOCK_THRESHOLD = 5;
         // ── Init: stamp base unit prices on price elements for JS recomputation ──
         document.addEventListener('DOMContentLoaded', () => {
             <?php foreach ($cartItems as $item):
-                $price      = floatval($item['pricesize']);
-                $discount   = floatval($item['discountvariant']);
-                $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+                $price            = floatval($item['pricesize']);
+                $variantDiscount  = floatval($item['discountvariant']);
+                $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+                $discount         = max($variantDiscount, $promoDiscount);
+                $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
             ?>
             (function () {
                 const el = document.getElementById('item-price-<?= $item['cart_id'] ?>');
                 if (el) {
-                    el.dataset.baseUnit    = <?= json_encode($unitPrice) ?>;      // variant-discounted unit (no tier)
-                    el.dataset.origPrice   = <?= json_encode($price) ?>;          // original price before any discount
-                    el.dataset.variantDisc = <?= json_encode(floatval($item['discountvariant'])) ?>; // variant % off
+                    el.dataset.baseUnit    = <?= json_encode($unitPrice) ?>;   // effective-discounted unit (variant o promo, alinman mas malaki) — no tier pa
+                    el.dataset.origPrice   = <?= json_encode($price) ?>;       // original price before any discount
+                    el.dataset.variantDisc = <?= json_encode($discount) ?>;    // effective % off (max ng variant vs promo) — para tama ang badge
                 }
             })();
             <?php endforeach; ?>

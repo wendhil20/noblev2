@@ -87,6 +87,49 @@ $totalPages = max(1, (int) ceil($totalProducts / $perPage));
 $page       = min($page, $totalPages);
 $offset     = ($page - 1) * $perPage;
 
+// ── Active promos for products (date-based, per-color/size or general) ───────
+$activePromos = []; // product_id => [ {color_id, sizename, discount_percent, end_date}, ... ]
+$promoRes = $conn->query("
+    SELECT product_id, color_id, sizename, discount_percent, end_date
+    FROM nobleproductpromo
+    WHERE NOW() BETWEEN start_date AND end_date
+");
+while ($row = $promoRes->fetch_assoc()) {
+    $activePromos[$row['product_id']][] = [
+        'color_id'         => $row['color_id'] !== null ? intval($row['color_id']) : null,
+        'sizename'         => $row['sizename'],
+        'discount_percent' => floatval($row['discount_percent']),
+        'end_date'         => $row['end_date'],
+    ];
+}
+
+// Resolve best applicable promo para sa isang specific variant (color+size)
+function resolveCardPromoDiscount(array $activePromos, $productId, $colorId, $sizeName) {
+    $best = 0;
+    foreach ($activePromos[$productId] ?? [] as $promo) {
+        $colorMatches = $promo['color_id'] === null || $promo['color_id'] === intval($colorId);
+        $sizeMatches  = $promo['sizename'] === null || $promo['sizename'] === $sizeName;
+        if ($colorMatches && $sizeMatches && $promo['discount_percent'] > $best) {
+            $best = $promo['discount_percent'];
+        }
+    }
+    return $best;
+}
+
+// Kunin ang PINAKAMALAPIT na mag-expire na promo (kahit anong color/size) para sa
+// timer badge sa card — mahalaga lang ito bilang visual hint, tama pa rin ang
+// exact discount kapag pumasok sa product page.
+function getSoonestPromoEndDate(array $activePromos, $productId) {
+    $soonest = null;
+    foreach ($activePromos[$productId] ?? [] as $promo) {
+        if ($soonest === null || strtotime($promo['end_date']) < strtotime($soonest)) {
+            $soonest = $promo['end_date'];
+        }
+    }
+    return $soonest;
+}
+
+
 // ── Fetch products ───────────────────────────────────────────────────────────
 $sql = "
     SELECT p.id, p.name, p.imageproduct, p.description,
@@ -135,6 +178,8 @@ if (!empty($productIds)) {
     foreach ($detailStmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
         $pid = $row['product_id'];
         $cid = $row['color_id'];
+        $promoDiscount = resolveCardPromoDiscount($activePromos, $pid, $cid, $row['sizename']);
+        $effectiveDiscount = max(floatval($row['discountvariant']), $promoDiscount);
         if (!isset($productColorData[$pid][$cid])) {
             $productColorData[$pid][$cid] = [
                 'id'        => $cid,
@@ -143,11 +188,11 @@ if (!empty($productIds)) {
                 'variants'  => [],
             ];
         }
-        $productColorData[$pid][$cid]['variants'][] = [
+          $productColorData[$pid][$cid]['variants'][] = [
             'id'       => $row['variant_id'],
             'sizename' => $row['sizename'],
             'price'    => floatval($row['pricesize']),
-            'discount' => floatval($row['discountvariant']),
+            'discount' => $effectiveDiscount,
             'stock'    => intval($row['stock']),
         ];
     }
@@ -200,6 +245,7 @@ ob_start();
             $cardTotalStock += $v['stock'];
             if ($v['discount'] > 0) $hasSale = true;
         }
+      $promoSoonestEndDate = getSoonestPromoEndDate($activePromos, $p['id']);
     ?>
     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
        class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
@@ -211,6 +257,13 @@ ob_start();
                              text-[8px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-full shadow">
                     SALE
                 </span>
+                <?php if ($promoSoonestEndDate): ?>
+                    <span class="promo-timer absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10 bg-gray-900/80 text-white
+                                 text-[8px] md:text-[9px] font-semibold px-1.5 md:px-2 py-0.5 rounded-full shadow"
+                          data-end="<?= date('c', strtotime($promoSoonestEndDate)) ?>">
+                        --:--:--
+                    </span>
+                <?php endif; ?>
             <?php endif; ?>
             <?php if (!empty($p['imageproduct'])): ?>
                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"

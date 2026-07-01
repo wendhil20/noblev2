@@ -68,6 +68,26 @@ $priceStmt->execute();
 $priceRange = $priceStmt->get_result()->fetch_assoc();
 $priceStmt->close();
 
+// ─── Active promos (date-based discount timer, per-color/size or general) ──
+$productPromos = [];
+$promoStmt = $conn->prepare("
+    SELECT color_id, sizename, discount_percent, end_date
+    FROM nobleproductpromo
+    WHERE product_id = ? AND NOW() BETWEEN start_date AND end_date
+");
+$promoStmt->bind_param("i", $productId);
+$promoStmt->execute();
+$promoResult = $promoStmt->get_result();
+while ($row = $promoResult->fetch_assoc()) {
+    $productPromos[] = [
+        'color_id'         => $row['color_id'] !== null ? intval($row['color_id']) : null, // null = all colors
+        'sizename'         => $row['sizename'], // null = all sizes
+        'discount_percent' => floatval($row['discount_percent']),
+        'end_date'         => $row['end_date'],
+    ];
+}
+$promoStmt->close();
+
 // ─── Fetch reviews for this product ────────────────────────────────────────
 $reviews = [];
 $avgRating = 0;
@@ -254,15 +274,21 @@ if ($isLoggedIn) {
                         </button>
                     <?php endif; ?>
 
-                    <div class="mb-1.5 md:mb-2" id="price-display">
-                        <?php if ($min > 0 || $max > 0): ?>
-                            <span class="text-base md:text-xl font-bold text-gray-900">
-                                ₱<?= number_format($min, 2) ?>
-                                <?= $min !== $max ? ' – ₱' . number_format($max, 2) : '' ?>
-                            </span>
-                        <?php else: ?>
-                            <span class="text-xs md:text-sm text-gray-400 italic">Price not set</span>
-                        <?php endif; ?>
+                    <div class="flex items-center gap-2 mb-1.5 md:mb-2">
+                        <div id="price-display">
+                            <?php if ($min > 0 || $max > 0): ?>
+                                <span class="text-base md:text-xl font-bold text-gray-900">
+                                    ₱<?= number_format($min, 2) ?>
+                                    <?= $min !== $max ? ' – ₱' . number_format($max, 2) : '' ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="text-xs md:text-sm text-gray-400 italic">Price not set</span>
+                            <?php endif; ?>
+                        </div>
+                        <span id="promo-timer"
+                            class="hidden inline-flex items-center gap-1 bg-red-50 text-red-500 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                            <i class="fa-solid fa-clock"></i> <span id="promo-timer-text">--:--:--</span>
+                        </span>
                     </div>
 
                     <p id="stock-info" class="text-xs md:text-sm mb-3 md:mb-4"></p>
@@ -598,6 +624,28 @@ if ($isLoggedIn) {
             color.variants.forEach(v => { variantMap[i][v.sizename] = v; });
         });
 
+        // ─── Active promos (date-based discount, per-color/size or general) ──
+        const productPromos = <?= json_encode($productPromos) ?>; // [{color_id, sizename, discount_percent, end_date}, ...]
+
+        function findApplicablePromo(colorId, sizeName) {
+            let best = null;
+            productPromos.forEach(promo => {
+                const colorMatches = promo.color_id === null || promo.color_id === colorId;
+                const sizeMatches  = promo.sizename === null || promo.sizename === sizeName;
+                if (colorMatches && sizeMatches && (!best || promo.discount_percent > best.discount_percent)) {
+                    best = promo;
+                }
+            });
+            return best;
+        }
+
+        function getEffectiveDiscount(variantDiscount, colorId, sizeName) {
+            const promo = findApplicablePromo(colorId, sizeName);
+            const promoDiscount = promo ? parseFloat(promo.discount_percent) : 0;
+            return Math.max(parseFloat(variantDiscount) || 0, promoDiscount);
+        }
+
+
         // ─── Qty Limit / Tier Discount helpers ──────────────────────────
         function isLimitReached() {
             return productQtyLimit > 0 && productCartQty >= productQtyLimit;
@@ -637,22 +685,20 @@ if ($isLoggedIn) {
             const discountAmount = subtotal * (tierDiscountPercent / 100);
             const total = subtotal - discountAmount;
 
-            // ── I-update ang price-display sa taas kung may tier discount ──
-            const priceDisplay = document.getElementById('price-display');
-            if (priceDisplay) {
-                const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
-                if (tierDiscountPercent > 0) {
+            // ── I-update lang ang price-display KUNG may qty-tier discount ──
+            // Kung wala, hayaan mo yung HTML na kagagawa lang ni resolveVariant()
+            // (na meron nang strikethrough + badge para sa promo/variant discount)
+            if (tierDiscountPercent > 0) {
+                const priceDisplay = document.getElementById('price-display');
+                if (priceDisplay) {
+                    const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
                     priceDisplay.innerHTML = `
                 <span class="text-base md:text-xl font-bold text-gray-900">₱${discountedUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                 <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-                } else {
-                    priceDisplay.innerHTML = `<span class="text-base md:text-xl font-bold text-gray-900">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
                 }
             }
 
             el.classList.remove('hidden');
-
-            // ── Total — plain lang, walang discount badge ──
             el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span><span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
         }
 
@@ -685,10 +731,10 @@ if ($isLoggedIn) {
             refreshQtyUI();
             refreshDiscountHint();
             // i-recompute ang final price gamit ang current unit price
-            const v = variantMap[selectedColorIndex]?.[selectedSizeName];
+           const v = variantMap[selectedColorIndex]?.[selectedSizeName];
             if (v) {
                 const orig = parseFloat(v.pricesize);
-                const d = parseFloat(v.discountvariant) || 0;
+                const d = getEffectiveDiscount(v.discountvariant, selectedColorId, selectedSizeName);
                 updateFinalPrice(d > 0 ? orig * (1 - d / 100) : orig);
             }
 
@@ -861,7 +907,7 @@ if ($isLoggedIn) {
 
                 if (variant.pricesize > 0) {
                     const original = parseFloat(variant.pricesize);
-                    const disc = parseFloat(variant.discountvariant) || 0;
+                     const disc = getEffectiveDiscount(variant.discountvariant, selectedColorId, selectedSizeName);
                     const discounted = disc > 0 ? original * (1 - disc / 100) : original;
 
                     let html = `<span class="text-base md:text-xl font-bold text-gray-900">₱${discounted.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
@@ -871,14 +917,11 @@ if ($isLoggedIn) {
                     }
                     document.getElementById('price-display').innerHTML = html;
 
-                    // ── Final price (qty × discounted price, kasama ang qty-tier discount) ──
                     updateFinalPrice(discounted);
+                    updatePromoTimer(selectedColorId, selectedSizeName);
                 }
 
                 updateStockLabel();
-
-                // Kung naabot na ang max quantity per order ng product, hindi na puedeng
-                // magdagdag pa kahit may stock pa — itago ang qty selector.
                 if (selectedVariantStock > 0 && !isLimitReached()) {
                     showQtySection();
                 } else {
@@ -888,6 +931,7 @@ if ($isLoggedIn) {
                 selectedVariantId = null;
                 clearStockInfo();
                 hideQtySection();
+                updatePromoTimer(null);
             }
         }
 
@@ -1087,6 +1131,45 @@ if ($isLoggedIn) {
             } else {
                 window.location.href = <?= json_encode(BASE_URL . '/') ?>;
             }
+        }
+
+        let promoTimerInterval = null;
+
+        function updatePromoTimer(colorId, sizeName) {
+            const el = document.getElementById('promo-timer');
+            const textEl = document.getElementById('promo-timer-text');
+            if (!el || !textEl) return;
+
+            if (promoTimerInterval) { clearInterval(promoTimerInterval); promoTimerInterval = null; }
+
+            const promo = (colorId && sizeName) ? findApplicablePromo(colorId, sizeName) : null;
+            if (!promo) {
+                el.classList.add('hidden');
+                return;
+            }
+
+            const end = new Date(promo.end_date.replace(' ', 'T')).getTime();
+            el.classList.remove('hidden');
+            el.classList.remove('opacity-50');
+
+            function tick() {
+                const diff = end - Date.now();
+                if (diff <= 0) {
+                    el.classList.add('opacity-50');
+                    textEl.textContent = 'Promo ended';
+                    clearInterval(promoTimerInterval);
+                    return;
+                }
+                const d = Math.floor(diff / 86400000);
+                const h = Math.floor((diff % 86400000) / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                textEl.textContent = d > 0
+                    ? `${d}d ${h}h left`
+                    : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+            tick();
+            promoTimerInterval = setInterval(tick, 1000);
         }
     </script>
     <?php include ROOT_PATH . '/user/navigation/bottom.php'; ?>

@@ -71,6 +71,42 @@ foreach (array_unique(array_column($cartItems, 'product_id')) as $pid) {
     $tiersPerProduct[$pid] = getProductQtyTiers($conn, (int) $pid);
 }
 
+// ── 2a.5 Active promos (date-based, per-color/size or general) ─────────────
+$promosByProduct = []; // product_id => [ {color_id, sizename, discount_percent}, ... ]
+$cartProductIds = array_unique(array_column($cartItems, 'product_id'));
+if (!empty($cartProductIds)) {
+    $idPh = implode(',', array_fill(0, count($cartProductIds), '?'));
+    $idTypes = str_repeat('i', count($cartProductIds));
+    $promoStmt = $conn->prepare("
+        SELECT product_id, color_id, sizename, discount_percent
+        FROM nobleproductpromo
+        WHERE product_id IN ($idPh) AND NOW() BETWEEN start_date AND end_date
+    ");
+    $promoStmt->bind_param($idTypes, ...$cartProductIds);
+    $promoStmt->execute();
+    $promoRes = $promoStmt->get_result();
+    while ($row = $promoRes->fetch_assoc()) {
+        $promosByProduct[$row['product_id']][] = [
+            'color_id'         => $row['color_id'] !== null ? intval($row['color_id']) : null,
+            'sizename'         => $row['sizename'],
+            'discount_percent' => floatval($row['discount_percent']),
+        ];
+    }
+    $promoStmt->close();
+}
+
+function resolvePromoDiscount(array $promosByProduct, $productId, $colorId, $sizeName) {
+    $best = 0;
+    foreach ($promosByProduct[$productId] ?? [] as $promo) {
+        $colorMatches = $promo['color_id'] === null || $promo['color_id'] === intval($colorId);
+        $sizeMatches  = $promo['sizename'] === null || $promo['sizename'] === $sizeName;
+        if ($colorMatches && $sizeMatches && $promo['discount_percent'] > $best) {
+            $best = $promo['discount_percent'];
+        }
+    }
+    return $best;
+}
+
 // ── 2b. Subtotal + cart volume/weight totals + stock validation ────────────────
 $subtotal        = 0;
 $totalVolumeCbm  = 0;  // cubic meters
@@ -78,9 +114,11 @@ $totalWeightKg   = 0;  // kg
 $hasStockIssue   = false; // true if any item is out of stock or qty exceeds stock
 
 foreach ($cartItems as $item) {
-    $price      = floatval($item['pricesize']);
-    $discount   = floatval($item['discountvariant']);
-    $unitPrice  = $discount > 0 ? $price * (1 - $discount / 100) : $price;
+    $price            = floatval($item['pricesize']);
+    $variantDiscount  = floatval($item['discountvariant']);
+    $promoDiscount    = resolvePromoDiscount($promosByProduct, $item['product_id'], $item['color_id'], $item['sizename']);
+    $discount         = max($variantDiscount, $promoDiscount);
+    $unitPrice        = $discount > 0 ? $price * (1 - $discount / 100) : $price;
     $qty        = intval($item['quantity']);
     $pid        = $item['product_id'];
 

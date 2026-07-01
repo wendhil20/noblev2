@@ -106,6 +106,12 @@ function isActive(string $path): string
                 Quantity Limit
             </a>
 
+            <a href="<?= BASE_URL ?>/ps-promotiontimer"
+                class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-promotiontimer') ?>">
+                <i class="fa-solid fa-clock w-4 text-center"></i>
+                Promotion Timer
+            </a>
+
             <a href="<?= BASE_URL ?>/ps-promotion"
                 class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 <?= isActive('/ps-promotion') ?>">
                 <i class="fa-solid fa-bullhorn w-4 text-center"></i>
