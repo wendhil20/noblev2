@@ -1,7 +1,6 @@
 <?php
 // user/ui-page/page-8/shop-products.php
 
-
 header('Content-Type: application/json');
 
 include ROOT_PATH . '/network/connect.php';
@@ -23,6 +22,14 @@ $selectedSizesLower      = array_map('mb_strtolower', $selectedSizes);
 
 $perPage = 8;
 $page    = max(1, intval($_GET['page'] ?? 1));
+
+function formatSoldCount($n) {
+    $n = intval($n);
+    if ($n >= 1000) {
+        return rtrim(rtrim(number_format($n / 1000, 1), '0'), '.') . 'K';
+    }
+    return number_format($n);
+}
 
 // ── Build WHERE clause ───────────────────────────────────────────────────────
 $where  = [];
@@ -83,10 +90,19 @@ $offset     = ($page - 1) * $perPage;
 // ── Fetch products ───────────────────────────────────────────────────────────
 $sql = "
     SELECT p.id, p.name, p.imageproduct, p.description,
-           MIN(v.pricesize) AS min_price, MAX(v.pricesize) AS max_price
+           MIN(v.pricesize) AS min_price, MAX(v.pricesize) AS max_price,
+           AVG(r.rating) AS avg_rating,
+           COUNT(DISTINCT r.id) AS review_count,
+           (
+               SELECT COALESCE(SUM(v2.sold), 0)
+               FROM nobleproductvariant v2
+               JOIN nobleproductcolor c2 ON c2.id = v2.color_id
+               WHERE c2.product_id = p.id
+           ) AS total_sold
     FROM nobleproduct p
     INNER JOIN nobleproductcolor c ON c.product_id = p.id
     INNER JOIN nobleproductvariant v ON v.color_id = c.id
+    LEFT JOIN noblereview r ON r.product_id = p.id
     $whereSql
     GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?";
 
@@ -234,6 +250,26 @@ ob_start();
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
+
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+        <?php if (!empty($p['review_count']) && $p['review_count'] > 0): ?>
+            <div class="flex items-center gap-1">
+                <i class="fa-solid fa-star text-amber-400 text-[9px] md:text-[10px]"></i>
+                <span class="text-[9px] md:text-[10px] font-semibold text-gray-700">
+                    <?= number_format($p['avg_rating'], 1) ?>
+                </span>
+                <span class="text-[8px] md:text-[9px] text-gray-400">
+                    (<?= (int) $p['review_count'] ?>)
+                </span>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($p['total_sold']) && $p['total_sold'] > 0): ?>
+            <span class="text-[8px] md:text-[9px] text-gray-400">
+                <?= formatSoldCount($p['total_sold']) ?> sold
+            </span>
+        <?php endif; ?>
+    </div>
+
 
             <div class="mt-1 md:mt-2">
                 <?php $min = floatval($p['min_price'] ?? 0); $max = floatval($p['max_price'] ?? 0); ?>

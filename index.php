@@ -237,7 +237,7 @@ $routes = [
     'orders'                               => 'user/ui-page/page-6/orders.php',
     'order-details'                        => 'user/ui-page/page-6/order-tracking.php',
     'request-replacement-submit'           => 'user/ui-page/backend/backend-page-6/request-replacement-submit.php',
-    'orders-poll'                         => 'user/ui-page/backend/backend-page-6/orders-poll.php',
+    'orders-poll'                          => 'user/ui-page/backend/backend-page-6/orders-poll.php',
     'order-tracking-poll'                  => 'user/ui-page/backend/backend-page-6/order-tracking-poll.php',
 
     // page 7
@@ -245,8 +245,12 @@ $routes = [
 
     // page 8
     'shop'                                  => 'user/ui-page/page-8/shop.php',
-    'shop-products'                          => 'user/ui-page/backend/backend-page-8/shop-products.php',
-    
+    'shop-products'                         => 'user/ui-page/backend/backend-page-8/shop-products.php',
+
+    //page 9
+    'recent'                                => 'user/ui-page/page-9/recentview-main.php',
+    'clearrecentview'                       => 'user/ui-page/backend/backend-page-9/clearrecentview.php',
+
 
     //admin
     'loginadmin'                           => 'admin/authentication/index-login.php',

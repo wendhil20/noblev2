@@ -104,6 +104,19 @@ foreach ($reviews as $r) {
 }
 
 $isLoggedIn = !empty($_SESSION['user_id']);
+
+// ─── I-record ang recent view ng user para sa product na ito ──────────────
+if ($isLoggedIn) {
+    $rvStmt = $conn->prepare("
+        INSERT INTO noblerecentview (user_id, product_id, viewed_at)
+        VALUES (?, ?, NOW())
+        ON DUPLICATE KEY UPDATE viewed_at = NOW()
+    ");
+    $rvStmt->bind_param("ii", $_SESSION['user_id'], $productId);
+    $rvStmt->execute();
+    $rvStmt->close();
+}
+
 $min = floatval($priceRange['min_price'] ?? 0);
 $max = floatval($priceRange['max_price'] ?? 0);
 

@@ -75,7 +75,7 @@ include ROOT_PATH . '/network/connect.php';
         </a>
 
         <!-- Receipt -->
-        <a href="/user/receipts"
+        <a href="<?= BASE_URL ?>/recent"
           class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all group">
           <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-all">
             <i class="fa-solid fa-receipt text-amber-600"></i>
@@ -84,7 +84,7 @@ include ROOT_PATH . '/network/connect.php';
         </a>
 
         <!-- Recent View -->
-        <a href="/user/recent"
+        <a href="<?= BASE_URL ?>/recent"
           class="flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-100 hover:border-amber-300 hover:bg-amber-50 transition-all group">
           <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-all">
             <i class="fa-solid fa-clock text-amber-600"></i>
