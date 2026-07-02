@@ -14,7 +14,7 @@ $uploadUrl = BASE_URL . '/uploads/';
 $products = [];
 $sql = "
     SELECT p.id, p.name, p.category, p.imageproduct,
-           l.max_qty_per_order,
+           l.min_qty_per_order, l.max_qty_per_order,
            (SELECT COUNT(*) FROM nobleproductqtytier t WHERE t.product_id = p.id) AS tier_count
     FROM nobleproduct p
     LEFT JOIN nobleproductlimit l ON l.product_id = p.id
@@ -44,7 +44,7 @@ while ($row = $result->fetch_assoc()) {
             <div>
                 <h1 class="text-lg font-bold text-slate-800">Product Limit & Quantity Discount</h1>
                 <p class="text-xs text-slate-400 mt-1">
-                    Itakda ang max quantity per order, at ang tiered discount habang dumadami ang quantity na binili.
+                    Itakda ang min/max quantity per order, at ang tiered discount habang dumadami ang quantity na binili.
                 </p>
             </div>
         </div>
@@ -61,6 +61,7 @@ while ($row = $result->fetch_assoc()) {
                         <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                             <th class="px-5 py-3 text-left">Product</th>
                             <th class="px-5 py-3 text-left">Category</th>
+                            <th class="px-5 py-3 text-center">Min Qty / Order</th>
                             <th class="px-5 py-3 text-center">Max Qty / Order</th>
                             <th class="px-5 py-3 text-center">Discount Tiers</th>
                             <th class="px-5 py-3 text-right">Action</th>
@@ -83,6 +84,11 @@ while ($row = $result->fetch_assoc()) {
                                     </div>
                                 </td>
                                 <td class="px-5 py-3 text-slate-500"><?= htmlspecialchars($p['category']) ?></td>
+                                <td class="px-5 py-3 text-center min-qty-cell">
+                                    <?= ($p['min_qty_per_order'] !== null && $p['min_qty_per_order'] > 1)
+                                        ? htmlspecialchars($p['min_qty_per_order'])
+                                        : '<span class="text-slate-300 italic">No minimum</span>' ?>
+                                </td>
                                 <td class="px-5 py-3 text-center max-qty-cell">
                                     <?= ($p['max_qty_per_order'] !== null && $p['max_qty_per_order'] > 0)
                                         ? htmlspecialchars($p['max_qty_per_order'])
@@ -129,15 +135,28 @@ while ($row = $result->fetch_assoc()) {
 
             <div class="p-5">
 
-                <!-- Max Qty Per Order -->
-                <div class="mb-5">
-                    <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-                        Max Quantity per Order
-                    </label>
-                    <input type="number" id="input-max-qty" min="0" placeholder="0 = walang limit"
-                        class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-400">
-                    <p class="text-[11px] text-slate-400 mt-1">Set to 0 kung walang limit sa quantity per order.</p>
+                <!-- Min / Max Qty Per Order -->
+                <div class="grid grid-cols-2 gap-3 mb-5">
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                            Min Quantity per Order
+                        </label>
+                        <input type="number" id="input-min-qty" min="1" placeholder="1 = walang minimum"
+                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-400">
+                        <p class="text-[11px] text-slate-400 mt-1">Set to 1 kung walang minimum na quantity.</p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+                            Max Quantity per Order
+                        </label>
+                        <input type="number" id="input-max-qty" min="0" placeholder="0 = walang limit"
+                            class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-amber-400">
+                        <p class="text-[11px] text-slate-400 mt-1">Set to 0 kung walang limit sa quantity per order.</p>
+                    </div>
                 </div>
+                <p class="text-[11px] text-slate-400 -mt-3 mb-4">
+                    Halimbawa: Min 10 = bawat "Add to Cart" ay dapat 10 pcs pataas — hindi puedeng paunti-unti (5, 5, ...).
+                </p>
 
                 <!-- Tiers -->
                 <div class="mb-2 flex items-center justify-between">
@@ -181,6 +200,7 @@ while ($row = $result->fetch_assoc()) {
             document.getElementById('modal-product-name').textContent = productName;
             document.getElementById('modal-error').classList.add('hidden');
             document.getElementById('tier-rows').innerHTML = '';
+            document.getElementById('input-min-qty').value = '';
             document.getElementById('input-max-qty').value = '';
             tierCounter = 0;
 
@@ -191,6 +211,7 @@ while ($row = $result->fetch_assoc()) {
                 .then(r => r.json())
                 .then(data => {
                     if (!data.ok) return;
+                    document.getElementById('input-min-qty').value = data.min_qty_per_order ?? 1;
                     document.getElementById('input-max-qty').value = data.max_qty_per_order ?? 0;
                     (data.tiers || []).forEach(t => addTierRow(t.min_qty, t.max_qty, t.discount_percent));
                     if (!data.tiers || data.tiers.length === 0) addTierRow();
@@ -255,10 +276,19 @@ while ($row = $result->fetch_assoc()) {
         async function saveManageModal() {
             document.getElementById('modal-error').classList.add('hidden');
 
+            const minQty = parseInt(document.getElementById('input-min-qty').value, 10) || 1;
             const maxQty = parseInt(document.getElementById('input-max-qty').value, 10) || 0;
             const tiers = collectTiers();
 
             // Basic client-side validation bago i-send sa server
+            if (minQty < 1) {
+                showModalError('Ang Min Quantity ay dapat 1 pataas.');
+                return;
+            }
+            if (maxQty > 0 && minQty > maxQty) {
+                showModalError('Ang Min Quantity ay hindi puedeng lumagpas sa Max Quantity.');
+                return;
+            }
             for (const t of tiers) {
                 if (!t.min_qty || !t.max_qty || t.min_qty > t.max_qty) {
                     showModalError('Mali ang Min/Max qty sa isa sa mga tier.');
@@ -280,6 +310,7 @@ while ($row = $result->fetch_assoc()) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         product_id: currentProductId,
+                        min_qty_per_order: minQty,
                         max_qty_per_order: maxQty,
                         tiers
                     })
@@ -289,7 +320,7 @@ while ($row = $result->fetch_assoc()) {
                 if (!data.ok) {
                     showModalError(data.msg || 'Failed to save.');
                 } else {
-                    updateRowDisplay(currentProductId, maxQty, tiers.length);
+                    updateRowDisplay(currentProductId, minQty, maxQty, tiers.length);
                     closeManageModal();
                 }
             } catch (e) {
@@ -300,9 +331,12 @@ while ($row = $result->fetch_assoc()) {
             btn.innerHTML = '<i class="fa-solid fa-floppy-disk mr-1.5"></i> Save';
         }
 
-        function updateRowDisplay(productId, maxQty, tierCount) {
+        function updateRowDisplay(productId, minQty, maxQty, tierCount) {
             const row = document.querySelector(`tr[data-product-id="${productId}"]`);
             if (!row) return;
+            row.querySelector('.min-qty-cell').innerHTML = minQty > 1
+                ? minQty
+                : '<span class="text-slate-300 italic">No minimum</span>';
             row.querySelector('.max-qty-cell').innerHTML = maxQty > 0
                 ? maxQty
                 : '<span class="text-slate-300 italic">No limit</span>';

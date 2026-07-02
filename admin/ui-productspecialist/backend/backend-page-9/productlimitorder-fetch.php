@@ -1,6 +1,6 @@
 <?php
 // productlimitorder-fetch.php
-// GET ?product_id=123 -> ibabalik ang kasalukuyang limit + discount tiers ng product
+// GET ?product_id=123 -> ibabalik ang kasalukuyang min/max limit + discount tiers ng product
 
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/admin/authentication/index-authguard.php';
@@ -18,7 +18,7 @@ if (!$productId) {
 }
 
 // Current limit
-$limitStmt = $conn->prepare("SELECT max_qty_per_order FROM nobleproductlimit WHERE product_id = ? LIMIT 1");
+$limitStmt = $conn->prepare("SELECT min_qty_per_order, max_qty_per_order FROM nobleproductlimit WHERE product_id = ? LIMIT 1");
 $limitStmt->bind_param("i", $productId);
 $limitStmt->execute();
 $limitRow = $limitStmt->get_result()->fetch_assoc();
@@ -47,6 +47,7 @@ $tierStmt->close();
 
 echo json_encode([
     'ok' => true,
+    'min_qty_per_order' => $limitRow ? (int) $limitRow['min_qty_per_order'] : 1,
     'max_qty_per_order' => $limitRow ? (int) $limitRow['max_qty_per_order'] : 0,
     'tiers' => $tiers,
 ]);

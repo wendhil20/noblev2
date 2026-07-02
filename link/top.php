@@ -17,8 +17,6 @@ define('QR_SECRET', 'warehouse_secret_2024');
 
 <link rel="icon" type="image/png" href="<?= BASE_URL ?>/icon/logo.png">
 
-
-
 <style>
      * {
     font-family: 'Plus Jakarta Sans', sans-serif;

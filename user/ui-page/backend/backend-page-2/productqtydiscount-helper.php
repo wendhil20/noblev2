@@ -12,6 +12,22 @@ function getProductQtyLimit(mysqli $conn, int $productId): int
 }
 
 /**
+ * Kunin ang minimum quantity na dapat i-add sa cart sa BAWAT single
+ * "Add to Cart" action (hindi accumulated/total sa cart).
+ * 1 = walang minimum requirement (default).
+ */
+function getProductQtyMin(mysqli $conn, int $productId): int
+{
+    $stmt = $conn->prepare("SELECT min_qty_per_order FROM nobleproductlimit WHERE product_id = ? LIMIT 1");
+    $stmt->bind_param("i", $productId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    $min = $row ? (int) $row['min_qty_per_order'] : 1;
+    return $min > 0 ? $min : 1;
+}
+
+/**
  * Kunin lahat ng discount tiers ng isang product, naka-sort by min_qty ascending.
  */
 function getProductQtyTiers(mysqli $conn, int $productId): array
@@ -88,3 +104,20 @@ function isWithinProductQtyLimit(mysqli $conn, int $productId, int $requestedQty
     return $requestedQty <= $max;
 }
 
+/**
+ * I-validate kung natutugunan ng requested qty ang minimum order quantity
+ * ng product. Ito ay HARD FLOOR sa BAWAT single "Add to Cart" action —
+ * hindi puedeng paunti-unti (hal. 5, tapos 5 ulit) para umabot sa minimum;
+ * dapat sakto o higit sa minimum na sa mismong request na ito.
+ *
+ * Gamitin ito bago i-insert sa cart (sa cartadd endpoint), para hindi
+ * malusutan kahit i-bypass ng user ang frontend JS.
+ */
+function isWithinProductQtyMin(mysqli $conn, int $productId, int $requestedQty): bool
+{
+    $min = getProductQtyMin($conn, $productId);
+    if ($min <= 1) {
+        return true; // walang minimum requirement
+    }
+    return $requestedQty >= $min;
+}

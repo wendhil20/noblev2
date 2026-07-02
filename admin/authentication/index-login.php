@@ -195,9 +195,15 @@ if (!empty($_SESSION['logged_in'])) {
                     <label for="password" class="block text-xs font-medium tracking-widest uppercase text-white mb-1.5">
                         <i class="fa-solid fa-key mr-1"></i> Password
                     </label>
-                    <input type="password" id="password" name="password" autocomplete="current-password"
-                        placeholder="Enter password" required
-                        class="w-full px-3 py-2.5 text-sm text-gray-800 bg-gray-50 border border-gray-300 rounded focus:outline-none focus:border-yellow-500 focus:bg-white transition">
+                    <div class="relative">
+                        <input type="password" id="password" name="password" autocomplete="current-password"
+                            placeholder="Enter password" required
+                            class="w-full px-3 py-2.5 pr-10 text-sm text-gray-800 bg-gray-50 border border-gray-300 rounded focus:outline-none focus:border-yellow-500 focus:bg-white transition">
+                        <button type="button" id="togglePassword" tabindex="-1"
+                            class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600 focus:outline-none">
+                            <i class="fa-solid fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit"
@@ -213,6 +219,16 @@ if (!empty($_SESSION['logged_in'])) {
 
             <script>
                 sessionStorage.clear();
+
+                document.getElementById('togglePassword').addEventListener('click', function () {
+                    const passwordInput = document.getElementById('password');
+                    const icon = document.getElementById('togglePasswordIcon');
+                    const isHidden = passwordInput.type === 'password';
+
+                    passwordInput.type = isHidden ? 'text' : 'password';
+                    icon.classList.toggle('fa-eye');
+                    icon.classList.toggle('fa-eye-slash');
+                });
             </script>
 
         </div>

@@ -1,6 +1,6 @@
 <?php
 // productlimitorder-save.php
-// POST JSON body: { product_id, max_qty_per_order, tiers: [{min_qty, max_qty, discount_percent}, ...] }
+// POST JSON body: { product_id, min_qty_per_order, max_qty_per_order, tiers: [{min_qty, max_qty, discount_percent}, ...] }
 
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/admin/authentication/index-authguard.php';
@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 $input = json_decode(file_get_contents('php://input'), true);
 
 $productId = intval($input['product_id'] ?? 0);
+$minQty = intval($input['min_qty_per_order'] ?? 1);
 $maxQty = intval($input['max_qty_per_order'] ?? 0);
 $tiersInput = is_array($input['tiers'] ?? null) ? $input['tiers'] : [];
 
@@ -21,8 +22,16 @@ if (!$productId) {
     echo json_encode(['ok' => false, 'msg' => 'Invalid product.']);
     exit;
 }
+if ($minQty < 1) {
+    echo json_encode(['ok' => false, 'msg' => 'Min quantity per order must be at least 1.']);
+    exit;
+}
 if ($maxQty < 0) {
     echo json_encode(['ok' => false, 'msg' => 'Max quantity per order cannot be negative.']);
+    exit;
+}
+if ($maxQty > 0 && $minQty > $maxQty) {
+    echo json_encode(['ok' => false, 'msg' => 'Min quantity cannot exceed max quantity per order.']);
     exit;
 }
 
@@ -74,11 +83,13 @@ $conn->begin_transaction();
 try {
     // Upsert sa limit table — isa lang dapat na row per product
     $upsert = $conn->prepare("
-        INSERT INTO nobleproductlimit (product_id, max_qty_per_order)
-        VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE max_qty_per_order = VALUES(max_qty_per_order)
+        INSERT INTO nobleproductlimit (product_id, min_qty_per_order, max_qty_per_order)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            min_qty_per_order = VALUES(min_qty_per_order),
+            max_qty_per_order = VALUES(max_qty_per_order)
     ");
-    $upsert->bind_param("ii", $productId, $maxQty);
+    $upsert->bind_param("iii", $productId, $minQty, $maxQty);
     $upsert->execute();
     $upsert->close();
 

@@ -62,6 +62,24 @@ if ($availableStock <= 0) {
     exit;
 }
 
+// ─── Product-level minimum quantity check ──────────────────────────────
+// HARD FLOOR: ang requested qty sa MISMONG request na ito ay dapat sakto o
+// higit sa minimum. Hindi natin ito auto-cap/adjust — dapat i-reject ang
+// buong request kung kulang, para hindi malito ang user (baka isipin niyang
+// 5 lang binili niya pero na-round up pala nang tahimik papuntang 10).
+$productMinQty = getProductQtyMin($conn, $productId); // 1 = walang minimum
+
+if (!isWithinProductQtyMin($conn, $productId, $qty)) {
+    echo json_encode([
+        'ok'               => false,
+        'msg'              => "Minimum order para sa product na ito ay {$productMinQty} pcs bawat pag-add sa cart.",
+        'min_qty_required' => true,
+        'min_qty'          => $productMinQty,
+    ]);
+    exit;
+}
+// ─────────────────────────────────────────────────────────────────────────
+
 // Check how much of THIS VARIANT the user already has in cart (stock-level check)
 $curStmt = $conn->prepare("SELECT quantity FROM noblecart WHERE user_id = ? AND variant_id = ? LIMIT 1");
 $curStmt->bind_param("ii", $userId, $variantId);
@@ -82,6 +100,31 @@ $productQtyStmt->close();
 
 $productLimit = getProductQtyLimit($conn, $productId); // 0 = walang limit
 // ─────────────────────────────────────────────────────────────────────────
+
+// Kung hindi sasapat ang natitirang stock/allowance para matugunan ang minimum,
+// dapat i-reject din — huwag na lang i-cap pababa sa ilalim ng minimum.
+$maxPossibleByStock = $availableStock - $currentVariantQty;
+$maxPossibleByLimit = $productLimit > 0 ? ($productLimit - $currentProductQty) : PHP_INT_MAX;
+$maxPossible = min($maxPossibleByStock, $maxPossibleByLimit);
+
+if ($productMinQty > 1 && $maxPossible < $productMinQty) {
+    if ($maxPossibleByStock < $productMinQty) {
+        echo json_encode([
+            'ok'           => false,
+            'msg'          => "Only {$availableStock} left in stock" . ($currentVariantQty > 0 ? " (you already have {$currentVariantQty} in your cart)" : "") . " — hindi sapat para sa minimum order na {$productMinQty} pcs.",
+            'out_of_stock' => true
+        ]);
+    } else {
+        echo json_encode([
+            'ok'               => false,
+            'msg'              => "Max {$productLimit} pcs lang ang pwedeng bilhin per order para sa product na ito (already {$currentProductQty} in your cart) — hindi na sapat para sa minimum order na {$productMinQty} pcs.",
+            'limit_reached'    => true,
+            'min_qty_required' => true,
+            'min_qty'          => $productMinQty,
+        ]);
+    }
+    exit;
+}
 
 // Cap qty base sa stock ng specific variant
 $qty = min($qty, $availableStock - $currentVariantQty);
@@ -111,6 +154,19 @@ if ($qty <= 0) {
             'limit_reached' => true
         ]);
     }
+    exit;
+}
+
+// ─── Huling safety check: kung na-cap yung qty (dahil sa stock/limit) at
+// bumaba na ito sa ilalim ng minimum, i-reject na rin — huwag tuluyan i-insert
+// yung isang qty na below minimum kahit papaano na-cap.
+if ($productMinQty > 1 && $qty < $productMinQty) {
+    echo json_encode([
+        'ok'               => false,
+        'msg'              => "Hindi sapat ang natitirang allowance para matugunan ang minimum order na {$productMinQty} pcs.",
+        'min_qty_required' => true,
+        'min_qty'          => $productMinQty,
+    ]);
     exit;
 }
 
@@ -150,6 +206,7 @@ if ($stmt->execute()) {
         'remaining_stock'     => $remainingStock,
         'product_qty_in_cart' => $newProductQty,
         'qty_limit'           => $productLimit,            // 0 = walang limit
+        'qty_min'             => $productMinQty,           // 1 = walang minimum
         'qty_discount_percent'=> $discountPercent,         // 0.0 = walang applicable discount
         'limit_reached'       => $limitReached,            // true kung na-cap dahil sa limit
     ];

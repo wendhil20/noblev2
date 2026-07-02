@@ -2,7 +2,7 @@
 // mainproductview.php
 
 include ROOT_PATH . '/network/connect.php';
-include ROOT_PATH . '/user/ui-page/backend/backend-page-2/productqtydiscount-helper.php'; // getProductQtyLimit(), getProductQtyTiers()
+include ROOT_PATH . '/user/ui-page/backend/backend-page-2/productqtydiscount-helper.php'; // getProductQtyLimit(), getProductQtyMin(), getProductQtyTiers()
 
 $uploadUrl = BASE_URL . '/uploads/';
 
@@ -140,8 +140,9 @@ if ($isLoggedIn) {
 $min = floatval($priceRange['min_price'] ?? 0);
 $max = floatval($priceRange['max_price'] ?? 0);
 
-// ─── Qty limit + tiered discount (PER PRODUCT — same sa lahat ng color/size) ──
-$productQtyLimit = getProductQtyLimit($conn, $productId);   // 0 = walang limit
+// ─── Qty limit + min + tiered discount (PER PRODUCT — same sa lahat ng color/size) ──
+$productQtyLimit = getProductQtyLimit($conn, $productId);   // 0 = walang max limit
+$productQtyMin = getProductQtyMin($conn, $productId);     // 1 = walang minimum (default)
 $qtyTiers = getProductQtyTiers($conn, $productId);  // [{min_qty,max_qty,discount_percent}, ...]
 
 // Ilan na ba ang nasa cart ng user para sa product na ito (across lahat ng color/size)?
@@ -353,6 +354,10 @@ if ($isLoggedIn) {
                                 </button>
                                 <span id="qty-max-label" class="text-[10px] md:text-xs text-gray-400 ml-1"></span>
                             </div>
+                            <p id="qty-min-note" class="hidden text-[11px] md:text-xs text-amber-600 font-medium mt-1.5">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                <span id="qty-min-note-text"></span>
+                            </p>
                         </div>
 
                         <!-- Quantity Discount Hint -->
@@ -603,8 +608,9 @@ if ($isLoggedIn) {
             : '<span class="text-xs md:text-sm text-gray-400 italic">Price not set</span>'
         ) ?>;
 
-        // ─── Per-product qty limit + tiered discount data (galing sa PHP) ───
-        const productQtyLimit = <?= json_encode($productQtyLimit) ?>;   // 0 = walang limit
+        // ─── Per-product qty limit + min + tiered discount data (from PHP) ───
+        const productQtyLimit = <?= json_encode($productQtyLimit) ?>;   // 0 = no max limit
+        const productQtyMin = <?= json_encode($productQtyMin) ?>;     // 1 = no minimum; must be ≥ this on EVERY add-to-cart
         const qtyTiers = <?= json_encode($qtyTiers) ?>;                  // [{min_qty,max_qty,discount_percent}, ...]
         let productCartQty = <?= json_encode($currentProductCartQty) ?>; // mutable — updated after successful add
         // ───────────────────────────────────────────────────────────────────
@@ -646,16 +652,27 @@ if ($isLoggedIn) {
         }
 
 
-        // ─── Qty Limit / Tier Discount helpers ──────────────────────────
+        // ─── Qty Limit / Min / Tier Discount helpers ──────────────────────────
         function isLimitReached() {
             return productQtyLimit > 0 && productCartQty >= productQtyLimit;
+        }
+
+        // Is there still enough stock/allowance left to meet the minimum quantity?
+        function canMeetMinimum() {
+            if (productQtyMin <= 1) return true;
+            if (selectedVariantStock < productQtyMin) return false;
+            if (productQtyLimit > 0) {
+                const remainingByLimit = Math.max(0, productQtyLimit - productCartQty);
+                if (remainingByLimit < productQtyMin) return false;
+            }
+            return true;
         }
 
         function getEffectiveMaxQty() {
             const stockMax = selectedVariantStock > 0 ? selectedVariantStock : 1;
             if (productQtyLimit <= 0) return stockMax;
             const remainingByLimit = Math.max(0, productQtyLimit - productCartQty);
-            if (remainingByLimit <= 0) return 1; // wala na talagang puedeng idagdag; hawak ito ng updateCartBtn/resolveVariant
+            if (remainingByLimit <= 0) return 1; // nothing left that can actually be added; handled by updateCartBtn/resolveVariant
             return Math.min(stockMax, remainingByLimit);
         }
 
@@ -671,32 +688,57 @@ if ($isLoggedIn) {
         function refreshDiscountHint() {
             const hint = document.getElementById('qty-discount-hint');
             if (!hint) return;
-            hint.classList.add('hidden'); // laging itago, wag na ipakita
+            hint.classList.add('hidden'); // always hide, don't show it anymore
         }
         // ──────────────────────────────────────────────────────────────────
 
-        function updateFinalPrice(unitPrice) {
+        // ─── Single source of truth for the unit price of the current variant ──
+        // (base price + variant/promo discount only, NOT including the qty-tier yet).
+        // This avoids the old bug: previously, when you moved to a qty that had
+        // a tier discount, the price-display HTML would get mutated incrementally,
+        // and when you moved to a qty that had NO tier discount, it wouldn't get
+        // reset back — leaving a stale discounted price even though it should be 0%.
+        let currentVariantOriginalPrice = 0;
+        let currentVariantBaseDiscountPercent = 0;
+
+        function renderPriceDisplay() {
+            const priceDisplay = document.getElementById('price-display');
+            if (!priceDisplay) return;
+
+            if (!currentVariantOriginalPrice) {
+                priceDisplay.innerHTML = defaultPriceHtml;
+                return;
+            }
+
+            // Effective discount = the larger of (variant/promo discount) and (qty-tier discount)
+            // — same as the old logic (Math.max), they don't stack.
+            const tierDiscountPercent = resolveTierDiscount(selectedQty);
+            const effectiveDiscount = Math.max(currentVariantBaseDiscountPercent, tierDiscountPercent);
+            const original = currentVariantOriginalPrice;
+            const discounted = effectiveDiscount > 0 ? original * (1 - effectiveDiscount / 100) : original;
+
+            let html = `<span class="text-base md:text-xl font-bold text-gray-900">₱${discounted.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+            if (effectiveDiscount > 0) {
+                html += ` <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${original.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+                html += ` <span class="text-xs md:text-sm text-red-400 font-semibold ml-1">-${effectiveDiscount}%</span>`;
+            }
+            priceDisplay.innerHTML = html;
+        }
+
+        function updateFinalPrice() {
             const el = document.getElementById('final-price-display');
             if (!el) return;
-            if (!unitPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
+            if (!currentVariantOriginalPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
 
-            const subtotal = unitPrice * selectedQty;
+            // Re-render price-display first based on the current qty —
+            // this is the only place that builds the discount HTML, always whole/deterministic.
+            renderPriceDisplay();
+
+            const subtotal = currentVariantOriginalPrice * selectedQty;
             const tierDiscountPercent = resolveTierDiscount(selectedQty);
-            const discountAmount = subtotal * (tierDiscountPercent / 100);
+            const effectiveDiscount = Math.max(currentVariantBaseDiscountPercent, tierDiscountPercent);
+            const discountAmount = subtotal * (effectiveDiscount / 100);
             const total = subtotal - discountAmount;
-
-            // ── I-update lang ang price-display KUNG may qty-tier discount ──
-            // Kung wala, hayaan mo yung HTML na kagagawa lang ni resolveVariant()
-            // (na meron nang strikethrough + badge para sa promo/variant discount)
-            if (tierDiscountPercent > 0) {
-                const priceDisplay = document.getElementById('price-display');
-                if (priceDisplay) {
-                    const discountedUnit = unitPrice * (1 - tierDiscountPercent / 100);
-                    priceDisplay.innerHTML = `
-                <span class="text-base md:text-xl font-bold text-gray-900">₱${discountedUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-                }
-            }
 
             el.classList.remove('hidden');
             el.innerHTML = `<span class="text-[10px] md:text-xs text-gray-400 uppercase tracking-widest font-semibold">Total</span><span class="text-lg md:text-2xl font-bold text-black">₱${total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
@@ -704,11 +746,20 @@ if ($isLoggedIn) {
 
         // ─── Quantity ──────────────────────────────────────────────────
         function showQtySection() {
-            selectedQty = 1;
+            // Start at the minimum quantity (if any), not always 1
+            selectedQty = productQtyMin > 1 ? Math.min(productQtyMin, getEffectiveMaxQtyRaw()) : 1;
             const el = document.getElementById('qty-section');
             if (el) el.classList.remove('hidden');
             refreshQtyUI();
             refreshDiscountHint();
+        }
+
+        // Max possible based only on stock/order-limit, not yet accounting for the UI clamp
+        function getEffectiveMaxQtyRaw() {
+            const stockMax = selectedVariantStock > 0 ? selectedVariantStock : 1;
+            if (productQtyLimit <= 0) return stockMax;
+            const remainingByLimit = Math.max(0, productQtyLimit - productCartQty);
+            return Math.min(stockMax, Math.max(remainingByLimit, 1));
         }
 
         function hideQtySection() {
@@ -723,35 +774,37 @@ if ($isLoggedIn) {
             if (fp) fp.classList.add('hidden');
             const hint = document.getElementById('qty-discount-hint');
             if (hint) hint.classList.add('hidden');
+            const minNote = document.getElementById('qty-min-note');
+            if (minNote) minNote.classList.add('hidden');
         }
 
         function changeQty(delta) {
             const max = getEffectiveMaxQty();
-            selectedQty = Math.max(1, Math.min(selectedQty + delta, max));
+            const floor = productQtyMin > 1 ? productQtyMin : 1;
+            selectedQty = Math.max(floor, Math.min(selectedQty + delta, max));
             refreshQtyUI();
             refreshDiscountHint();
-            // i-recompute ang final price gamit ang current unit price
-           const v = variantMap[selectedColorIndex]?.[selectedSizeName];
-            if (v) {
-                const orig = parseFloat(v.pricesize);
-                const d = getEffectiveDiscount(v.discountvariant, selectedColorId, selectedSizeName);
-                updateFinalPrice(d > 0 ? orig * (1 - d / 100) : orig);
-            }
-
+            // recompute the price — the re-render is always whole/deterministic,
+            // so even if qty moves back into a range with no tier discount,
+            // the result is still correct (no leftover stale discount).
+            updateFinalPrice();
         }
 
         function refreshQtyUI() {
             const max = getEffectiveMaxQty();
+            const floor = productQtyMin > 1 ? productQtyMin : 1;
             const disp = document.getElementById('qty-display');
             const minus = document.getElementById('qty-minus');
             const plus = document.getElementById('qty-plus');
             const lbl = document.getElementById('qty-max-label');
             const limitNote = document.getElementById('qty-limit-note');
+            const minNote = document.getElementById('qty-min-note');
+            const minNoteText = document.getElementById('qty-min-note-text');
 
             if (disp) disp.textContent = selectedQty;
-            if (minus) minus.disabled = selectedQty <= 1;
+            if (minus) minus.disabled = selectedQty <= floor;
             if (plus) plus.disabled = selectedQty >= max;
-            if (lbl) lbl.textContent = max > 1 ? `max ${max}` : '';
+            if (lbl) lbl.textContent = max > floor ? `max ${max}` : '';
 
             if (limitNote) {
                 if (productQtyLimit > 0) {
@@ -760,6 +813,16 @@ if ($isLoggedIn) {
                         : `— max ${productQtyLimit} per order`;
                 } else {
                     limitNote.textContent = '';
+                }
+            }
+
+            // Show a reminder if the product has a minimum quantity requirement
+            if (minNote && minNoteText) {
+                if (productQtyMin > 1) {
+                    minNoteText.textContent = `This product requires ${productQtyMin} pcs or more per add-to-cart.`;
+                    minNote.classList.remove('hidden');
+                } else {
+                    minNote.classList.add('hidden');
                 }
             }
         }
@@ -788,6 +851,8 @@ if ($isLoggedIn) {
 
             if (selectedVariantStock <= 0) {
                 el.innerHTML = '<span class="text-red-500 font-medium"><i class="fa-solid fa-circle-exclamation mr-1"></i>Out of stock</span>';
+            } else if (!canMeetMinimum()) {
+                el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${selectedVariantStock} left — not enough for the min. order of ${productQtyMin} pcs</span>`;
             } else if (selectedVariantStock <= LOW_STOCK_THRESHOLD) {
                 el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${selectedVariantStock} left in stock</span>`;
             } else {
@@ -802,6 +867,8 @@ if ($isLoggedIn) {
                 selectedColorId = null;
                 selectedSizeName = null;
                 selectedVariantId = null;
+                currentVariantOriginalPrice = 0;
+                currentVariantBaseDiscountPercent = 0;
                 clearStockInfo();
                 hideQtySection();
                 document.getElementById('selected-color-label').textContent = '';
@@ -906,29 +973,24 @@ if ($isLoggedIn) {
                 selectedVariantStock = parseInt(variant.stock, 10) || 0;
 
                 if (variant.pricesize > 0) {
-                    const original = parseFloat(variant.pricesize);
-                     const disc = getEffectiveDiscount(variant.discountvariant, selectedColorId, selectedSizeName);
-                    const discounted = disc > 0 ? original * (1 - disc / 100) : original;
+                    currentVariantOriginalPrice = parseFloat(variant.pricesize);
+                    currentVariantBaseDiscountPercent = getEffectiveDiscount(variant.discountvariant, selectedColorId, selectedSizeName);
 
-                    let html = `<span class="text-base md:text-xl font-bold text-gray-900">₱${discounted.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-                    if (disc > 0) {
-                        html += ` <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${original.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
-                        html += ` <span class="text-xs md:text-sm text-red-400 font-semibold ml-1">-${disc}%</span>`;
-                    }
-                    document.getElementById('price-display').innerHTML = html;
-
-                    updateFinalPrice(discounted);
+                    renderPriceDisplay();
+                    updateFinalPrice();
                     updatePromoTimer(selectedColorId, selectedSizeName);
                 }
 
                 updateStockLabel();
-                if (selectedVariantStock > 0 && !isLimitReached()) {
+                if (selectedVariantStock > 0 && !isLimitReached() && canMeetMinimum()) {
                     showQtySection();
                 } else {
                     hideQtySection();
                 }
             } else {
                 selectedVariantId = null;
+                currentVariantOriginalPrice = 0;
+                currentVariantBaseDiscountPercent = 0;
                 clearStockInfo();
                 hideQtySection();
                 updatePromoTimer(null);
@@ -950,6 +1012,10 @@ if ($isLoggedIn) {
                     btn.disabled = true;
                     btn.className = `${base} bg-amber-50 text-amber-600 cursor-not-allowed`;
                     btn.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-2"></i> Max ${productQtyLimit} per order reached`;
+                } else if (!canMeetMinimum()) {
+                    btn.disabled = true;
+                    btn.className = `${base} bg-amber-50 text-amber-600 cursor-not-allowed`;
+                    btn.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-2"></i> Min. order is ${productQtyMin} pcs`;
                 } else {
                     btn.disabled = false;
                     btn.className = `${base} bg-amber-500 hover:bg-amber-600 text-white cursor-pointer`;
@@ -980,12 +1046,20 @@ if ($isLoggedIn) {
             }
 
             if (isLimitReached()) {
-                showToast('warning', `Max ${productQtyLimit} pcs lang ang pwedeng bilhin per order para sa product na ito.`);
+                showToast('warning', `Only ${productQtyLimit} pcs can be purchased per order for this product.`);
                 updateCartBtn();
                 return;
             }
 
             const qty = selectedQty || 1;
+
+            // ─── Hard floor: every single Add to Cart action must be ≥ minimum ──
+
+            if (productQtyMin > 1 && qty < productQtyMin) {
+                showToast('warning', `You need ${productQtyMin} pcs or more per add-to-cart for this product.`);
+                updateCartBtn();
+                return;
+            }
 
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Adding…';
@@ -1009,7 +1083,7 @@ if ($isLoggedIn) {
                         counter.classList.remove('hidden');
                     }
 
-                    // I-sync ang total product qty sa cart, galing sa backend (source of truth)
+                    // Sync the total product qty in cart, from the backend (source of truth)
                     if (data.product_qty_in_cart !== undefined) {
                         productCartQty = data.product_qty_in_cart;
                     }
@@ -1025,12 +1099,12 @@ if ($isLoggedIn) {
                             const sizeBtn = document.getElementById('size-btn-' + selectedSizeName);
                             if (sizeBtn) { sizeBtn.classList.add('unavailable'); sizeBtn.disabled = true; }
                             hideQtySection();
-                        } else if (isLimitReached()) {
-                            // naabot na ang max per order kasunod ng add na ito
+                        } else if (isLimitReached() || !canMeetMinimum()) {
+                            // max per order reached, or not enough left to meet the minimum
                             hideQtySection();
                         } else {
-                            // reset qty to 1 after successful add, refresh max
-                            selectedQty = 1;
+                            // reset qty to minimum (or 1) after successful add, refresh max
+                            selectedQty = productQtyMin > 1 ? Math.min(productQtyMin, getEffectiveMaxQtyRaw()) : 1;
                             refreshQtyUI();
                             refreshDiscountHint();
                         }
@@ -1077,7 +1151,7 @@ if ($isLoggedIn) {
         }
 
         function switchTab(tab) {
-            const panels = ['specs', 'gallery', 'reviews']; // dinagdag ang 'reviews'
+            const panels = ['specs', 'gallery', 'reviews']; // added 'reviews'
             panels.forEach(p => {
                 const panel = document.getElementById('panel-' + p);
                 const btn = document.getElementById('tab-' + p);
