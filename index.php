@@ -254,6 +254,9 @@ $routes = [
     'recent'                                => 'user/ui-page/page-9/recentview-main.php',
     'clearrecentview'                       => 'user/ui-page/backend/backend-page-9/clearrecentview.php',
 
+    //page 10
+    'inspiration'                             => 'user/ui-page/page-10/inspiration-main.php',
+
 
     //admin
     'loginadmin'                           => 'admin/authentication/index-login.php',

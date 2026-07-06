@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int) ($_POST['id'] ?? 0);
     $title = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $category_id = (int) ($_POST['category_id'] ?? 0);
     $start_date = $_POST['start_date'] ?? '';
     $end_date = $_POST['end_date'] ?? '';
     $is_active = isset($_POST['is_active']) ? 1 : 0;
@@ -30,12 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // validation
     if ($title === '')
         $errors[] = 'Title is required.';
+    if ($category_id <= 0)
+        $errors[] = 'Please select a category to link this promotion to.';
     if ($start_date === '')
         $errors[] = 'Start date is required.';
     if ($end_date === '')
         $errors[] = 'End date is required.';
     if ($start_date && $end_date && $end_date < $start_date)
         $errors[] = 'End date must be after start date.';
+
+    // verify category actually exists
+    if ($category_id > 0) {
+        $check = $conn->prepare("SELECT id FROM noblecategory WHERE id = ?");
+        $check->bind_param('i', $category_id);
+        $check->execute();
+        if ($check->get_result()->num_rows === 0) {
+            $errors[] = 'Selected category does not exist.';
+        }
+        $check->close();
+    }
 
     $imageName = null;
 
@@ -63,10 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'add') {
             // INSERT
             $stmt = $conn->prepare(
-                "INSERT INTO noblepromotions (title, description, banner_image, start_date, end_date, is_active, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, NOW())"
+                "INSERT INTO noblepromotions (title, description, banner_image, category_id, start_date, end_date, is_active, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())"
             );
-            $stmt->bind_param('sssssi', $title, $description, $imageName, $start_date, $end_date, $is_active);
+            $stmt->bind_param('sssissi', $title, $description, $imageName, $category_id, $start_date, $end_date, $is_active);
             $stmt->execute();
             $stmt->close();
             $success = 'Promotion added successfully!';
@@ -75,11 +89,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // keep old image if no new upload
             if ($imageName === null) {
                 $stmt = $conn->prepare(
-                    "UPDATE noblepromotions SET title=?, description=?, start_date=?, end_date=?, is_active=? WHERE id=?"
+                    "UPDATE noblepromotions SET title=?, description=?, category_id=?, start_date=?, end_date=?, is_active=? WHERE id=?"
                 );
-                $stmt->bind_param('ssssii', $title, $description, $start_date, $end_date, $is_active, $id);
-                // fix spacing
-                $stmt->bind_param('ssssii', $title, $description, $start_date, $end_date, $is_active, $id);
+                $stmt->bind_param('ssisssi', $title, $description, $category_id, $start_date, $end_date, $is_active, $id);
                 $stmt->execute();
                 $stmt->close();
             } else {
@@ -94,9 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     unlink($uploadDir . $oldImg);
 
                 $stmt = $conn->prepare(
-                    "UPDATE noblepromotions SET title=?, description=?, banner_image=?, start_date=?, end_date=?, is_active=? WHERE id=?"
+                    "UPDATE noblepromotions SET title=?, description=?, banner_image=?, category_id=?, start_date=?, end_date=?, is_active=? WHERE id=?"
                 );
-                $stmt->bind_param('sssssii', $title, $description, $imageName, $start_date, $end_date, $is_active, $id);
+                $stmt->bind_param('sssisssi', $title, $description, $imageName, $category_id, $start_date, $end_date, $is_active, $id);
                 $stmt->execute();
                 $stmt->close();
             }
@@ -116,8 +128,16 @@ if (isset($_GET['edit'])) {
     $stmt->close();
 }
 
-// fetch all promotions
-$promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DESC");
+// fetch all promotions (joined with category name for display)
+$promotions = $conn->query("
+    SELECT p.*, c.name AS category_name
+    FROM noblepromotions p
+    LEFT JOIN noblecategory c ON c.id = p.category_id
+    ORDER BY p.created_at DESC
+");
+
+// fetch categories for the dropdown
+$categories = $conn->query("SELECT id, name FROM noblecategory ORDER BY name ASC");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -204,6 +224,26 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                         <h3 class="font-semibold text-slate-800 text-sm leading-snug mb-1">
                             <?= htmlspecialchars($promo['title']) ?>
                         </h3>
+
+                        <!-- Linked category badge -->
+                        <div class="mb-2">
+                            <?php if (!empty($promo['category_name'])): ?>
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M7 7h.01M3 3h8.586a1 1 0 01.707.293l7.414 7.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0L2.293 12.293A1 1 0 012 11.586V4a1 1 0 011-1z" />
+                                    </svg>
+                                    <?= htmlspecialchars($promo['category_name']) ?>
+                                </span>
+                            <?php else: ?>
+                                <span
+                                    class="inline-flex items-center gap-1 rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-medium text-slate-400">
+                                    No category linked
+                                </span>
+                            <?php endif; ?>
+                        </div>
+
                         <?php if ($promo['description']): ?>
                             <p class="text-xs text-slate-500 line-clamp-2 mb-3">
                                 <?= htmlspecialchars($promo['description']) ?>
@@ -247,10 +287,10 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
      MODAL — Add / Edit
      ============================================================ -->
     <div id="promoModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden max-h-[90vh] overflow-y-auto">
 
             <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
                 <h2 id="modalTitle" class="text-base font-bold text-slate-800">Add Promotion</h2>
                 <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 transition">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -271,6 +311,24 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                     <input type="text" name="title" id="fieldTitle" required
                         class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition"
                         placeholder="e.g. Summer Sale 2025">
+                </div>
+
+                <!-- Linked Category -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">
+                        Link to Category <span class="text-red-500">*</span>
+                    </label>
+                    <select name="category_id" id="fieldCategory" required
+                        class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none transition">
+                        <option value="">-- Select category --</option>
+                        <?php
+                        $categories->data_seek(0);
+                        while ($cat = $categories->fetch_assoc()): ?>
+                            <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                        <?php endwhile; ?>
+                    </select>
+                    <p class="text-xs text-slate-400 mt-1">Clicking this banner on the homepage will take users to this
+                        category's page.</p>
                 </div>
 
                 <!-- Description -->
@@ -363,6 +421,7 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
             document.getElementById('formAction').value = 'add';
             document.getElementById('formId').value = '0';
             document.getElementById('fieldTitle').value = '';
+            document.getElementById('fieldCategory').value = '';
             document.getElementById('fieldDescription').value = '';
             document.getElementById('fieldStartDate').value = '';
             document.getElementById('fieldEndDate').value = '';
@@ -382,6 +441,7 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
             document.getElementById('formAction').value = 'update';
             document.getElementById('formId').value = promo.id;
             document.getElementById('fieldTitle').value = promo.title || '';
+            document.getElementById('fieldCategory').value = promo.category_id || '';
             document.getElementById('fieldDescription').value = promo.description || '';
             document.getElementById('fieldStartDate').value = promo.start_date || '';
             document.getElementById('fieldEndDate').value = promo.end_date || '';
@@ -453,6 +513,7 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                 <?php if ($_POST['action'] === 'update'): ?>
                     document.getElementById('formId').value = '<?= (int) $_POST['id'] ?>';
                     document.getElementById('fieldTitle').value = <?= json_encode($_POST['title'] ?? '') ?>;
+                    document.getElementById('fieldCategory').value = <?= json_encode($_POST['category_id'] ?? '') ?>;
                     document.getElementById('fieldDescription').value = <?= json_encode($_POST['description'] ?? '') ?>;
                     document.getElementById('fieldStartDate').value = <?= json_encode($_POST['start_date'] ?? '') ?>;
                     document.getElementById('fieldEndDate').value = <?= json_encode($_POST['end_date'] ?? '') ?>;
@@ -463,6 +524,7 @@ $promotions = $conn->query("SELECT * FROM noblepromotions ORDER BY created_at DE
                     document.getElementById('formAction').value = 'update';
                 <?php else: ?>
                     document.getElementById('fieldTitle').value = <?= json_encode($_POST['title'] ?? '') ?>;
+                    document.getElementById('fieldCategory').value = <?= json_encode($_POST['category_id'] ?? '') ?>;
                     document.getElementById('fieldDescription').value = <?= json_encode($_POST['description'] ?? '') ?>;
                     document.getElementById('fieldStartDate').value = <?= json_encode($_POST['start_date'] ?? '') ?>;
                     document.getElementById('fieldEndDate').value = <?= json_encode($_POST['end_date'] ?? '') ?>;

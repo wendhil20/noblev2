@@ -6,7 +6,7 @@ include ROOT_PATH . '/network/connect.php';
 // Fetch active promotions (within date range)
 $promotions = [];
 $promoResult = $conn->query("
-    SELECT id, title, description, banner_image
+    SELECT id, title, description, banner_image, category_id
     FROM noblepromotions
     WHERE is_active = 1
       AND start_date <= CURDATE()
@@ -40,28 +40,15 @@ while ($row = $promoResult->fetch_assoc())
                     <!-- Slides container -->
                     <div class="flex w-full" id="promoTrack">
                         <?php foreach ($promotions as $i => $promo): ?>
-                            <div class="relative shrink-0 w-full">
+                            <a href="<?= BASE_URL ?>/productcategory?id=<?= (int) $promo['category_id'] ?>"
+                                class="relative shrink-0 w-full block" data-slide-link="<?= $i ?>">
                                 <?php if ($promo['banner_image']): ?>
                                     <img src="<?= BASE_URL ?>/uploads/promotions/<?= htmlspecialchars($promo['banner_image']) ?>"
                                         alt="<?= htmlspecialchars($promo['title']) ?>" data-slide-img="<?= $i ?>"
                                         class="w-full h-auto block">
                                 <?php endif; ?>
-                                <!-- Gradient overlay + text -->
-                                <div class="absolute bottom-0 left-0 right-0 flex flex-col justify-end
-bg-gradient-to-t from-black/40 via-black/15 to-transparent
-px-4 md:px-14 pb-3 md:pb-8 pt-10 md:pt-20">
-                                    <p
-                                        class="text-white font-bold text-[11px] md:text-3xl leading-snug drop-shadow-lg line-clamp-1">
-                                        <?= htmlspecialchars($promo['title']) ?>
-                                    </p>
-                                    <?php if ($promo['description']): ?>
-                                        <p
-                                            class="text-white/75 text-[9px] md:text-base mt-0.5 md:mt-1 leading-relaxed drop-shadow line-clamp-1 md:line-clamp-2">
-                                            <?= htmlspecialchars($promo['description']) ?>
-                                        </p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
+                           
+                            </a>
                         <?php endforeach; ?>
                     </div>
 
@@ -235,11 +222,37 @@ px-4 md:px-14 pb-3 md:pb-8 pt-10 md:pt-20">
 
                 startAuto();
 
+                // ---- swipe handling ----
+                // We track drag distance so that a swipe gesture doesn't
+                // accidentally trigger the <a> link's click/navigation.
                 let startX = 0;
-                slider.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+                let dragDistance = 0;
+                const links = document.querySelectorAll('[data-slide-link]');
+
+                slider.addEventListener('touchstart', e => {
+                    startX = e.touches[0].clientX;
+                    dragDistance = 0;
+                }, { passive: true });
+
+                slider.addEventListener('touchmove', e => {
+                    dragDistance = e.touches[0].clientX - startX;
+                }, { passive: true });
+
                 slider.addEventListener('touchend', e => {
                     const diff = startX - e.changedTouches[0].clientX;
-                    if (Math.abs(diff) > 40) { go(current + (diff > 0 ? 1 : -1)); resetAuto(); }
+                    if (Math.abs(diff) > 40) {
+                        go(current + (diff > 0 ? 1 : -1));
+                        resetAuto();
+                    }
+                });
+
+                // prevent navigation if the user was actually swiping/dragging
+                links.forEach(link => {
+                    link.addEventListener('click', e => {
+                        if (Math.abs(dragDistance) > 10) {
+                            e.preventDefault();
+                        }
+                    });
                 });
             })();
         </script>

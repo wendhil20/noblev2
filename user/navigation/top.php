@@ -2,6 +2,19 @@
 // top.php - Main Navigation Bar
 // NOTE: Login logic is handled in /user/auth/google.php
 $isLoggedIn = !empty($_SESSION['user_id']);
+
+// Determine active nav link based on current path
+$currentPath = rtrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+$isFindProfessionalActive = $currentPath === rtrim(parse_url(BASE_URL . '/find-professional', PHP_URL_PATH), '/');
+$isInspirationActive = $currentPath === rtrim(parse_url(BASE_URL . '/inspiration', PHP_URL_PATH), '/');
+
+// Reusable squiggly underline SVG (hand-drawn style)
+function squigglyUnderline() {
+    return '<svg class="absolute left-0 -bottom-2 w-full h-3 pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2,6 C15,2 25,9 38,5 C50,1 60,9 72,4 C82,0 90,7 98,5"
+              stroke="#f97316" stroke-width="2.5" fill="none" stroke-linecap="round" />
+    </svg>';
+}
 ?>
 
 <nav class="w-full bg-white border-b border-gray-200 shadow-sm relative z-40">
@@ -22,18 +35,19 @@ $isLoggedIn = !empty($_SESSION['user_id']);
                 <!-- Desktop Nav Links -->
                 <div class="hidden md:flex items-center gap-6">
                     <a href="<?= BASE_URL ?>/find-professional"
-                        class="text-sm font-medium text-gray-700 hover:text-orange-500 transition-colors duration-150 whitespace-nowrap">
+                        class="relative text-sm font-medium <?= $isFindProfessionalActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150 whitespace-nowrap">
                         Find Professional
+                        <?php if ($isFindProfessionalActive) echo squigglyUnderline(); ?>
                     </a>
                     <a href="<?= BASE_URL ?>/inspiration"
-                        class="text-sm font-medium text-gray-700 hover:text-orange-500 transition-colors duration-150">
+                        class="relative text-sm font-medium <?= $isInspirationActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150">
                         Inspiration
+                        <?php if ($isInspirationActive) echo squigglyUnderline(); ?>
                     </a>
 
                     <?php include ROOT_PATH . '/user/navigation/navproductscategory.php'; ?>
                 </div>
             </div>
-
             <!-- Right: Search + Icons + Hamburger -->
             <div class="flex items-center gap-2">
 
