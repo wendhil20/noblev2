@@ -183,7 +183,7 @@ function squigglyUnderline() {
                                 </a>
                             </div>
                             <div class="border-t border-gray-100 py-1">
-                                <a href="<?= BASE_URL ?>/user/auth/logout"
+                                <a href="<?= BASE_URL ?>/logout"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors duration-150">
                                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
                                         viewBox="0 0 24 24">
@@ -489,7 +489,7 @@ function squigglyUnderline() {
     <!-- Sidebar Footer: Login / Logout pinned at bottom -->
     <div class="shrink-0 px-4 py-4 border-t border-gray-100">
         <?php if ($isLoggedIn): ?>
-            <a href="<?= BASE_URL ?>/user/auth/logout"
+            <a href="<?= BASE_URL ?>/logout"
                 class="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium text-red-500 border border-red-200 hover:bg-red-50 transition-colors duration-150">
                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round"
