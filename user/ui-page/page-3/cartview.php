@@ -161,7 +161,7 @@ $LOW_STOCK_THRESHOLD = 5;
         <span id="toast-msg"></span>
     </div>
 
-    <div class="max-w-5xl mx-auto px-6 py-10">
+     <div class="max-w-7xl mx-auto px-6 py-5 pb-24 md:pb-5">
 
         <!-- Header -->
         <div class="flex items-center gap-3 mb-8">

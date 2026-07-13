@@ -204,7 +204,7 @@ if ($isLoggedIn) {
         <span id="toast-msg"></span>
     </div>
 
-    <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
+    <div class="max-w-7xl mx-auto px-6 py-5 pb-24 md:pb-5">
 
         <a href="javascript:void(0)" onclick="goBackSafe()"
             class="inline-flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-amber-500 transition mb-4 md:mb-6">

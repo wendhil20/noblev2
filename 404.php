@@ -141,7 +141,7 @@ if (!defined('ROOT_PATH')) {
 
     <!-- Go Back Button -->
     <div class="fade-up-5">
-        <a href="<?= defined('BASE_URL') ? BASE_URL . '/loginuser' : '/' ?>"
+        <a href="<?= defined('BASE_URL') ? BASE_URL . '/' : '/' ?>"
            class="btn-home inline-flex items-center gap-3 px-8 py-3 rounded-full text-white text-sm font-bold tracking-widest uppercase">
             <i class="fa-solid fa-house text-amber-500"></i>
             Go Back Home

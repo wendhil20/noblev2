@@ -213,9 +213,9 @@ if (!$order) {
     <?php include ROOT_PATH . '/link/top.php'; ?>
     <?php include ROOT_PATH . '/user/navigation/top.php'; ?>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50">
 
-    <div class="max-w-md mx-auto px-4 py-16">
+  <div class="max-w-7xl mx-auto px-6 py-5">
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
 
             <!-- Icon -->

@@ -1,7 +1,7 @@
 <?php
 // bottom.php
 ?>
-<footer class="bg-white border-t border-gray-100 mt-auto">
+<footer class="hidden md:block bg-white border-t border-gray-100 mt-auto">
 
     <!-- Main footer -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -18,18 +18,15 @@
                 </p>
                 <!-- Socials -->
                 <div class="flex gap-2.5 mt-4">
-                    <a href="#" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-amber-100 hover:text-amber-600
+                    <a href="https://www.facebook.com/noblehomedepotph" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-amber-100 hover:text-amber-600
                                       flex items-center justify-center text-gray-500 transition-colors duration-200">
                         <i class="fa-brands fa-facebook-f text-xs"></i>
                     </a>
-                    <a href="#" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-amber-100 hover:text-amber-600
+                    <a href="https://www.instagram.com/noblehome_depot" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-amber-100 hover:text-amber-600
                                       flex items-center justify-center text-gray-500 transition-colors duration-200">
                         <i class="fa-brands fa-instagram text-xs"></i>
                     </a>
-                    <a href="#" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 hover:bg-amber-100 hover:text-amber-600
-                                      flex items-center justify-center text-gray-500 transition-colors duration-200">
-                        <i class="fa-brands fa-tiktok text-xs"></i>
-                    </a>
+                 
                 </div>
             </div>
 
@@ -61,15 +58,15 @@
                 <ul class="space-y-2 sm:space-y-3">
                     <li class="flex items-start gap-2 text-xs sm:text-sm text-gray-500">
                         <i class="fa-solid fa-location-dot text-amber-400 mt-0.5 shrink-0"></i>
-                        <span>123 Noble St., Quezon City, Metro Manila</span>
+                        <span>2nd Floor MC Premier building 1181 Edsa Balintawak Quezon City</span>
                     </li>
                     <li class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
                         <i class="fa-solid fa-phone text-amber-400 shrink-0"></i>
-                        <a href="tel:+639123456789" class="hover:text-amber-500 transition-colors">+63 912 345 6789</a>
+                        <a href="tel:+639123456789" class="hover:text-amber-500 transition-colors">09922394563 / (02) 8822-1295</a>
                     </li>
                     <li class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
                         <i class="fa-solid fa-envelope text-amber-400 shrink-0"></i>
-                        <a href="mailto:support@noblehome.ph" class="hover:text-amber-500 transition-colors">support@noblehome.ph</a>
+                        <a href="mailto:support@noblehome.ph" class="hover:text-amber-500 transition-colors">noblehomeconst.ph@gmail.com</a>
                     </li>
                 </ul>
             </div>

@@ -145,8 +145,6 @@ $adminRoutes = [
     'warehouse-assignupdate',
     'warehouse-backendstaff-orders',
 
-
-
     //warehousereceiver
     'warehousereceiver',
     'warehousereceiverscan',

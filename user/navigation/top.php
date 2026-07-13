@@ -7,9 +7,12 @@ $isLoggedIn = !empty($_SESSION['user_id']);
 $currentPath = rtrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
 $isFindProfessionalActive = $currentPath === rtrim(parse_url(BASE_URL . '/find-professional', PHP_URL_PATH), '/');
 $isInspirationActive = $currentPath === rtrim(parse_url(BASE_URL . '/inspiration', PHP_URL_PATH), '/');
+$isHomeActive = $currentPath === rtrim(parse_url(BASE_URL, PHP_URL_PATH), '/');
+$isCartPageActive = $currentPath === rtrim(parse_url(BASE_URL . '/cartview', PHP_URL_PATH), '/');
 
 // Reusable squiggly underline SVG (hand-drawn style)
-function squigglyUnderline() {
+function squigglyUnderline()
+{
     return '<svg class="absolute left-0 -bottom-2 w-full h-3 pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M2,6 C15,2 25,9 38,5 C50,1 60,9 72,4 C82,0 90,7 98,5"
               stroke="#f97316" stroke-width="2.5" fill="none" stroke-linecap="round" />
@@ -17,7 +20,89 @@ function squigglyUnderline() {
 }
 ?>
 
-<nav class="w-full bg-white border-b border-gray-200 shadow-sm relative z-40">
+<!-- ===================== GLOBAL PAGE LOADER (Uiverse.io by boryanakrasteva) ===================== -->
+<!-- NOTE: this stays plain CSS (not Tailwind arbitrary-value classes) because sites with a
+     compiled/purged Tailwind build won't generate classes like animate-[pulse_4923_2s_linear_infinite]
+     unless that exact string was already scanned at build time — plain CSS always renders regardless. -->
+<style>
+    #page-loader-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(2px);
+        align-items: center;
+        justify-content: center;
+    }
+
+    .loader-circle-wrap {
+        position: relative;
+        width: 100px;
+        height: 100px;
+    }
+
+    .loader-circle-wrap .circle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 0px;
+        height: 0px;
+        border-radius: 100%;
+        opacity: 0;
+        animation: pulse_4923 2s infinite linear;
+        border: 0.5px solid #f97316;
+        box-shadow: 0px 0px 5px #fdba74;
+    }
+
+    .loader-circle-wrap .circle:nth-child(1) {
+        animation-delay: .2s;
+    }
+
+    .loader-circle-wrap .circle:nth-child(2) {
+        animation-delay: .4s;
+    }
+
+    .loader-circle-wrap .circle:nth-child(3) {
+        animation-delay: .8s;
+    }
+
+    .loader-circle-wrap .circle:nth-child(4) {
+        animation-delay: 1s;
+    }
+
+    @keyframes pulse_4923 {
+        0% {
+            opacity: 0.0;
+            width: 0px;
+            height: 0px;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        10% {
+            opacity: 0.5;
+            transform: translate(-50%, -50%) scale(2);
+        }
+
+        100% {
+            opacity: 0.0;
+            width: 100px;
+            height: 100px;
+            transform: translate(-50%, -50%) scale(1);
+        }
+    }
+</style>
+
+<div id="page-loader-overlay" class="hidden">
+    <div class="loader-circle-wrap">
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+        <div class="circle"></div>
+    </div>
+</div>
+
+<nav class="hidden md:block w-full bg-white border-b border-gray-200 shadow-sm relative z-40">
     <div class="max-w-screen-xl mx-auto px-4">
         <div class="flex items-center justify-between h-16">
 
@@ -37,12 +122,14 @@ function squigglyUnderline() {
                     <a href="<?= BASE_URL ?>/find-professional"
                         class="relative text-sm font-medium <?= $isFindProfessionalActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150 whitespace-nowrap">
                         Find Professional
-                        <?php if ($isFindProfessionalActive) echo squigglyUnderline(); ?>
+                        <?php if ($isFindProfessionalActive)
+                            echo squigglyUnderline(); ?>
                     </a>
                     <a href="<?= BASE_URL ?>/inspiration"
                         class="relative text-sm font-medium <?= $isInspirationActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150">
                         Inspiration
-                        <?php if ($isInspirationActive) echo squigglyUnderline(); ?>
+                        <?php if ($isInspirationActive)
+                            echo squigglyUnderline(); ?>
                     </a>
 
                     <?php include ROOT_PATH . '/user/navigation/navproductscategory.php'; ?>
@@ -84,15 +171,6 @@ function squigglyUnderline() {
                         </div>
                     </div>
                 </form>
-
-                <!-- Icon: Search (mobile only) -->
-                <button id="mobile-search-toggle"
-                    class="lg:hidden p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8" />
-                        <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
-                    </svg>
-                </button>
 
                 <!-- Cart Icon with Hover Dropdown -->
                 <?php
@@ -227,37 +305,49 @@ function squigglyUnderline() {
                 </button>
             </div>
         </div>
-
-        <div id="mobile-search-bar" class="hidden pb-3 lg:hidden relative">
-            <div
-                class="flex items-center border border-gray-300 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-orange-400">
-                <div class="flex items-center pl-3 text-gray-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="8" />
-                        <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
-                    </svg>
-                </div>
-                <input type="text" id="mobile-search-input" autocomplete="off" placeholder="Search for products..."
-                    class="text-sm text-gray-700 placeholder-gray-400 px-3 py-2 flex-1 outline-none bg-white" />
-                <button
-                    class="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150">
-                    Search
-                </button>
-            </div>
-
-            <div id="mobile-search-suggestions"
-                class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
-            </div>
-
-            <div id="mobile-search-error" class="hidden absolute -bottom-9 left-3 z-50">
-                <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-                    Please fill in the blank.
-                    <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
-                </div>
-            </div>
-        </div>
     </div>
 </nav>
+
+<!-- ===================== MOBILE SEARCH OVERLAY (triggered from bottom nav) ===================== -->
+<div id="mobile-search-bar"
+    class="hidden md:hidden fixed top-0 left-0 right-0 z-[70] bg-white border-b border-gray-200 shadow-md px-4 pt-4 pb-3">
+    <div class="flex items-center gap-2">
+        <div
+            class="flex-1 flex items-center border border-gray-300 rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-orange-400 relative">
+            <div class="flex items-center pl-3 text-gray-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8" />
+                    <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
+                </svg>
+            </div>
+            <input type="text" id="mobile-search-input" autocomplete="off" placeholder="Search for products..."
+                class="text-sm text-gray-700 placeholder-gray-400 px-3 py-2 flex-1 outline-none bg-white" />
+            <button id="mobile-search-submit"
+                class="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150">
+                Search
+            </button>
+        </div>
+        <button id="mobile-search-close"
+            class="p-2 text-gray-400 hover:text-gray-600 transition-colors focus:outline-none shrink-0"
+            aria-label="Close search">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+    </div>
+
+    <div id="mobile-search-suggestions"
+        class="hidden absolute top-full left-4 right-4 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
+    </div>
+
+    <div id="mobile-search-error" class="hidden absolute top-full left-6 mt-1 z-50">
+        <div class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+            Please fill in the blank.
+            <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+        </div>
+    </div>
+</div>
+<div id="mobile-search-backdrop" class="hidden fixed inset-0 bg-black/40 z-[65] md:hidden"></div>
 
 <!-- ===================== MOBILE SIDEBAR ===================== -->
 
@@ -316,111 +406,21 @@ function squigglyUnderline() {
 
             <a href="<?= BASE_URL ?>/find-professional"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
+
                 Find Professional
             </a>
 
             <a href="<?= BASE_URL ?>/inspiration"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
+                <i class="fa-solid fa-burst text-lg"></i>
                 Inspiration
             </a>
 
-            <!-- ===================== MOBILE PRODUCTS ACCORDION ===================== -->
-            <!-- Replace the existing mobile products accordion block in top.php with this -->
-            <div id="mobile-products-section">
-                <button id="mobile-products-toggle" class="w-full flex items-center justify-between gap-3 px-3 py-3 rounded-lg
-                   text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-500
-                   transition-colors duration-150 focus:outline-none">
-                    <span class="flex items-center gap-3">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                        </svg>
-                        Products
-                    </span>
-                    <svg id="products-chevron" class="w-4 h-4 transition-transform duration-200 shrink-0" fill="none"
-                        stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                </button>
-
-                <!-- Accordion body -->
-                <div id="mobile-products-menu" class="hidden pl-4 pb-1 space-y-1">
-
-                    <?php foreach ($categories as $cid => $cat): ?>
-                        <?php if (empty($cat['subcategories']))
-                            continue; ?>
-
-                        <!-- Category label -->
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pt-3 pb-1">
-                            <?= htmlspecialchars($cat['name']) ?>
-                        </p>
-
-                        <?php foreach ($cat['subcategories'] as $sid => $sub): ?>
-                            <!-- Subcategory accordion row -->
-                            <div>
-                                <button class="mobile-sub-toggle w-full flex items-center justify-between
-                                   px-3 py-2.5 rounded-lg text-sm text-gray-700
-                                   hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150"
-                                    data-target="mobile-sub-<?= $sid ?>">
-                                    <span><?= htmlspecialchars($sub['name']) ?></span>
-                                    <?php if (!empty($sub['products'])): ?>
-                                        <svg class="w-3.5 h-3.5 transition-transform duration-200 mobile-chevron" fill="none"
-                                            stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                    <?php endif; ?>
-                                </button>
-
-                                <?php if (!empty($sub['products'])): ?>
-                                    <div id="mobile-sub-<?= $sid ?>" class="hidden pl-4 space-y-0.5 pb-1">
-                                        <?php foreach ($sub['products'] as $prod): ?>
-                                            <a href="<?= BASE_URL ?>/product/<?= $prod['id'] ?>" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-                                          text-gray-600 hover:bg-orange-50 hover:text-orange-500
-                                          transition-colors duration-150">
-                                                <div
-                                                    class="w-7 h-7 rounded bg-gray-100 shrink-0 overflow-hidden border border-gray-200">
-                                                    <?php if (!empty($prod['imageproduct'])): ?>
-                                                        <img src="<?= BASE_URL ?>/uploads/<?= htmlspecialchars($prod['imageproduct']) ?>"
-                                                            alt="<?= htmlspecialchars($prod['name']) ?>" class="w-full h-full object-cover">
-                                                    <?php else: ?>
-                                                        <div class="w-full h-full flex items-center justify-center text-gray-300">
-                                                            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
-                                                                class="w-3 h-3">
-                                                                <path stroke-linecap="round" stroke-linejoin="round"
-                                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <?= htmlspecialchars($prod['name']) ?>
-                                            </a>
-                                        <?php endforeach; ?>
-                                        <a href="<?= BASE_URL ?>/products/subcategory/<?= $sid ?>" class="block px-3 py-1.5 text-[11px] font-semibold text-orange-500
-                                      hover:text-orange-600 transition-colors duration-150">
-                                            View all →
-                                        </a>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
-
-                    <?php endforeach; ?>
-
-                    <a href="<?= BASE_URL ?>/products/all" class="flex items-center gap-2 px-3 py-2.5 mt-1 rounded-lg text-sm font-semibold
-                  text-orange-500 hover:bg-orange-50 transition-colors duration-150">
-                        View All Products →
-                    </a>
-                </div>
-            </div>
+            <a href="<?= BASE_URL ?>/shop"
+                class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
+                <i class="fa-solid fa-bag-shopping text-lg"></i>
+                Shop
+            </a>
         </div>
 
         <!-- Quick Links (small mobile only — sm:hidden icons in navbar) -->
@@ -428,27 +428,18 @@ function squigglyUnderline() {
             <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pt-2 pb-1">Quick Links</p>
             <a href="<?= BASE_URL ?>/cartview"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+                <i class="fa-solid fa-cart-flatbed"></i>
                 Cart
             </a>
             <a href="<?= BASE_URL ?>/saved"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-4-7 4V5z" />
-                </svg>
+                <i class="fa-solid fa-bookmark text-lg"></i>
                 Saved Items
             </a>
-            <a href="<?= BASE_URL ?>/notifications"
+            <a href="<?= BASE_URL ?>/system-notifications"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                Notifications
+                <i class="fa-sharp fa-solid fa-message text-lg"></i>
+                System Notifications
             </a>
         </div>
 
@@ -458,27 +449,17 @@ function squigglyUnderline() {
                 <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pt-2 pb-1">Account</p>
                 <a href="<?= BASE_URL ?>/profile"
                     class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M5.121 17.804A9 9 0 1119 12a9 9 0 01-13.879 5.804zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <i class="fa-solid fa-circle-user text-lg"></i>
                     My Profile
                 </a>
                 <a href="<?= BASE_URL ?>/orders"
                     class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
+                    <i class="fa-solid fa-cart-flatbed"></i>
                     My Orders
                 </a>
                 <a href="<?= BASE_URL ?>/settings"
                     class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
+                    <i class="fa-solid fa-gear text-lg"></i>
                     Settings
                 </a>
             </div>
@@ -521,6 +502,60 @@ function squigglyUnderline() {
 
 </div>
 
+<!-- ===================== MOBILE BOTTOM NAV (TikTok Shop style) ===================== -->
+<nav id="mobile-bottom-nav"
+    class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200
+           flex items-stretch justify-between px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_6px_rgba(0,0,0,0.06)]">
+
+    <!-- Home -->
+    <a href="<?= BASE_URL ?>" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium
+               <?= $isHomeActive ? 'text-orange-500' : 'text-gray-500' ?>">
+        <i class="fa-sharp fa-solid fa-house-chimney-window text-lg"></i>
+        Home
+    </a>
+
+    <!-- Search -->
+    <button id="mobile-search-toggle"
+        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-gray-500 focus:outline-none">
+        <i class="fa-solid fa-magnifying-glass text-lg"></i>
+        Search
+    </button>
+
+    <!-- Cart (elevated center action button) -->
+    <a href="<?= BASE_URL ?>/cartview" class="flex-1 flex flex-col items-center justify-center relative -mt-3">
+        <div
+            class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-200 relative">
+            <i class="fa-solid fa-cart-flatbed text-white text-lg"></i>
+            <span id="cart-count-bottom"
+                class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+            </span>
+        </div>
+        <span
+            class="text-[10px] font-medium mt-0.5 <?= $isCartPageActive ? 'text-orange-500' : 'text-gray-500' ?>">Cart</span>
+    </a>
+
+    <!-- Inspiration -->
+    <a href="<?= BASE_URL ?>/inspiration" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium
+               <?= $isInspirationActive ? 'text-orange-500' : 'text-gray-500' ?>">
+        <i class="fa-solid fa-burst text-lg"></i>
+        Inspiration
+    </a>
+
+    <!-- Account / Menu (opens same sidebar) -->
+    <button id="mobile-bottomnav-menu-toggle"
+        class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-gray-500 focus:outline-none">
+        <?php if ($isLoggedIn && !empty($_SESSION['user_avatar'])): ?>
+            <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>" alt="" class="w-5 h-5 rounded-full object-cover" />
+        <?php else: ?>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M5.121 17.804A9 9 0 1119 12a9 9 0 01-13.879 5.804zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        <?php endif; ?>
+        <?= $isLoggedIn ? 'Account' : 'Menu' ?>
+    </button>
+</nav>
+
 <script>
     const menuToggle = document.getElementById('mobile-menu-toggle');
     const sidebar = document.getElementById('mobile-sidebar');
@@ -528,13 +563,14 @@ function squigglyUnderline() {
     const sidebarClose = document.getElementById('sidebar-close');
     const searchToggle = document.getElementById('mobile-search-toggle');
     const searchBar = document.getElementById('mobile-search-bar');
-    const productsToggle = document.getElementById('mobile-products-toggle');
-    const productsMenu = document.getElementById('mobile-products-menu');
-    const productsChevron = document.getElementById('products-chevron');
+    const searchClose = document.getElementById('mobile-search-close');
+    const searchBackdrop = document.getElementById('mobile-search-backdrop');
+    const bottomNavMenuToggle = document.getElementById('mobile-bottomnav-menu-toggle');
     const BASE_URL = '<?= BASE_URL ?>';
 
 
     function openSidebar() {
+        if (!backdrop || !sidebar) return;
         backdrop.classList.remove('hidden');
         requestAnimationFrame(() => {
             backdrop.classList.add('opacity-100');
@@ -544,28 +580,69 @@ function squigglyUnderline() {
     }
 
     function closeSidebar() {
+        if (!backdrop || !sidebar) return;
         backdrop.classList.remove('opacity-100');
         sidebar.classList.add('-translate-x-full');
         setTimeout(() => backdrop.classList.add('hidden'), 300);
         document.body.style.overflow = '';
     }
 
-    menuToggle.addEventListener('click', openSidebar);
-    sidebarClose.addEventListener('click', closeSidebar);
-    backdrop.addEventListener('click', closeSidebar);
+    function warnMissing(name) {
+        console.warn('[top.php] Expected element not found on this page:', name);
+    }
 
-    searchToggle.addEventListener('click', () => {
-        searchBar.classList.toggle('hidden');
-    });
+    if (menuToggle) { menuToggle.addEventListener('click', openSidebar); } else { warnMissing('#mobile-menu-toggle'); }
+    if (sidebarClose) { sidebarClose.addEventListener('click', closeSidebar); } else { warnMissing('#sidebar-close'); }
+    if (backdrop) { backdrop.addEventListener('click', closeSidebar); } else { warnMissing('#sidebar-backdrop'); }
 
-    productsToggle.addEventListener('click', () => {
-        productsMenu.classList.toggle('hidden');
-        productsChevron.classList.toggle('rotate-180');
-    });
+    if (bottomNavMenuToggle) {
+        bottomNavMenuToggle.addEventListener('click', openSidebar);
+    }
+
+    function openMobileSearch() {
+        if (!searchBar || !searchBackdrop) return;
+        searchBar.classList.remove('hidden');
+        searchBackdrop.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => {
+            const input = document.getElementById('mobile-search-input');
+            if (input) input.focus();
+        }, 50);
+    }
+
+    function closeMobileSearch() {
+        if (!searchBar || !searchBackdrop) return;
+        searchBar.classList.add('hidden');
+        searchBackdrop.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    if (searchToggle) searchToggle.addEventListener('click', openMobileSearch);
+    if (searchClose) searchClose.addEventListener('click', closeMobileSearch);
+    if (searchBackdrop) searchBackdrop.addEventListener('click', closeMobileSearch);
 
     window.addEventListener('resize', () => {
-        if (window.innerWidth >= 768) closeSidebar();
+        if (window.innerWidth >= 768) {
+            closeSidebar();
+            closeMobileSearch();
+        }
     });
+
+    // Sync cart count badge between top navbar and bottom nav
+    (function () {
+        const cartCountTop = document.getElementById('cart-count');
+        const cartCountBottom = document.getElementById('cart-count-bottom');
+        if (!cartCountTop || !cartCountBottom) return;
+
+        const syncCartBadge = () => {
+            cartCountBottom.textContent = cartCountTop.textContent;
+            cartCountBottom.classList.toggle('hidden', cartCountTop.classList.contains('hidden'));
+        };
+
+        const observer = new MutationObserver(syncCartBadge);
+        observer.observe(cartCountTop, { attributes: true, childList: true, characterData: true, subtree: true });
+        syncCartBadge();
+    })();
 
     (function () {
         const searchSuggestUrl = '<?= BASE_URL ?>/search-suggest';
@@ -600,6 +677,7 @@ function squigglyUnderline() {
         }
 
         function attachSearchBox(inputEl, dropdownEl) {
+            if (!inputEl || !dropdownEl) return;
             let debounceTimer = null;
             let activeController = null;
 
@@ -651,50 +729,99 @@ function squigglyUnderline() {
         );
     })();
 
-    document.getElementById('desktop-search-form').addEventListener('submit', function (e) {
-        const input = document.getElementById('desktop-search-input');
-        const tooltip = document.getElementById('desktop-search-error');
-        if (input.value.trim() === '') {
-            e.preventDefault();
-            tooltip.classList.remove('hidden');
-            input.focus();
-        } else {
-            tooltip.classList.add('hidden');
-        }
-    });
+    const desktopSearchForm = document.getElementById('desktop-search-form');
+    if (desktopSearchForm) {
+        desktopSearchForm.addEventListener('submit', function (e) {
+            const input = document.getElementById('desktop-search-input');
+            const tooltip = document.getElementById('desktop-search-error');
+            if (input && input.value.trim() === '') {
+                e.preventDefault();
+                if (tooltip) tooltip.classList.remove('hidden');
+                input.focus();
+            } else if (tooltip) {
+                tooltip.classList.add('hidden');
+            }
+        });
+    }
 
-    document.getElementById('desktop-search-input').addEventListener('input', function () {
-        document.getElementById('desktop-search-error').classList.add('hidden');
-    });
+    const desktopSearchInput = document.getElementById('desktop-search-input');
+    if (desktopSearchInput) {
+        desktopSearchInput.addEventListener('input', function () {
+            const tooltip = document.getElementById('desktop-search-error');
+            if (tooltip) tooltip.classList.add('hidden');
+        });
+    }
 
-    document.querySelector('#mobile-search-bar button').addEventListener('click', function (e) {
-        const input = document.getElementById('mobile-search-input');
-        const tooltip = document.getElementById('mobile-search-error');
-        if (input.value.trim() === '') {
-            tooltip.classList.remove('hidden');
-            input.focus();
-            return;
-        }
-        tooltip.classList.add('hidden');
-        window.location.href = `<?= BASE_URL ?>/shop?search=${encodeURIComponent(input.value.trim())}`;
-    });
+    const mobileSearchSubmit = document.getElementById('mobile-search-submit');
+    if (mobileSearchSubmit) {
+        mobileSearchSubmit.addEventListener('click', function (e) {
+            const input = document.getElementById('mobile-search-input');
+            const tooltip = document.getElementById('mobile-search-error');
+            if (!input) return;
+            if (input.value.trim() === '') {
+                if (tooltip) tooltip.classList.remove('hidden');
+                input.focus();
+                return;
+            }
+            if (tooltip) tooltip.classList.add('hidden');
+            closeMobileSearch();
+            window.location.href = `<?= BASE_URL ?>/shop?search=${encodeURIComponent(input.value.trim())}`;
+        });
+    }
 
-    document.getElementById('mobile-search-input').addEventListener('input', function () {
-        document.getElementById('mobile-search-error').classList.add('hidden');
-    });
+    const mobileSearchInput = document.getElementById('mobile-search-input');
+    if (mobileSearchInput) {
+        mobileSearchInput.addEventListener('input', function () {
+            const tooltip = document.getElementById('mobile-search-error');
+            if (tooltip) tooltip.classList.add('hidden');
+        });
+    }
 
     // Bagong dagdag: mawala ang tooltip pag click sa labas
     document.addEventListener('click', function (e) {
         const desktopInput = document.getElementById('desktop-search-input');
         const desktopTooltip = document.getElementById('desktop-search-error');
-        if (desktopTooltip && !desktopInput.contains(e.target) && e.target !== desktopInput) {
+        if (desktopTooltip && desktopInput && !desktopInput.contains(e.target) && e.target !== desktopInput) {
             desktopTooltip.classList.add('hidden');
         }
 
         const mobileInput = document.getElementById('mobile-search-input');
         const mobileTooltip = document.getElementById('mobile-search-error');
-        if (mobileTooltip && !mobileInput.contains(e.target) && e.target !== mobileInput) {
+        if (mobileTooltip && mobileInput && !mobileInput.contains(e.target) && e.target !== mobileInput) {
             mobileTooltip.classList.add('hidden');
         }
     });
+
+    // ===================== NAV LINK LOADING OVERLAY (2s) =====================
+    (function () {
+        const loaderOverlay = document.getElementById('page-loader-overlay');
+        if (!loaderOverlay) return;
+
+        const navContainers = [
+            document.querySelector('nav.hidden.md\\:block'), // desktop top nav
+            document.getElementById('mobile-sidebar'),
+            document.getElementById('mobile-bottom-nav')
+        ].filter(Boolean);
+
+        navContainers.forEach(container => {
+            container.querySelectorAll('a[href]').forEach(link => {
+                link.addEventListener('click', function (e) {
+                    const href = link.getAttribute('href');
+
+                    // Skip empty/hash links, new-tab links, or links explicitly opting out
+                    if (!href || href.startsWith('#') || link.target === '_blank' || link.hasAttribute('data-no-loader')) {
+                        return;
+                    }
+
+                    e.preventDefault();
+                    loaderOverlay.classList.remove('hidden');
+                    loaderOverlay.style.display = 'flex';
+
+                    setTimeout(() => {
+                        window.location.href = href;
+                    }, 2000);
+                });
+            });
+        });
+    })();
 </script>

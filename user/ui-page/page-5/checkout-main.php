@@ -1,6 +1,6 @@
 <?php
 // checkout.php
-
+include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
 ?>
 <!DOCTYPE html>
@@ -16,7 +16,7 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
 
 <body class="bg-gray-50 min-h-screen">
 
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-10">
+   <div class="max-w-7xl mx-auto px-6 py-5 pb-24 md:pb-5">
 
         <!-- ── Page header ── -->
         <div class="flex items-center gap-3 mb-8">

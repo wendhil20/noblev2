@@ -79,17 +79,35 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         <span id="toast-msg"></span>
     </div>
 
-    <div class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
+    <!-- Mobile filter backdrop -->
+    <div id="filterOverlay"
+        class="fixed inset-0 bg-black/40 z-40 hidden md:hidden"
+        onclick="closeFilterDrawer()"></div>
+
+    <div class="max-w-7xl mx-auto px-3 py-2 pb-24 md:pb-5">
         <div class="flex flex-col md:flex-row gap-6">
 
             <!-- ═══════════════ SIDEBAR FILTERS ═══════════════ -->
-            <aside class="w-full md:w-64 shrink-0">
-                <div class="rounded-xl p-5 sticky top-4">
+            <!-- Mobile: fixed off-canvas drawer sliding from the left. Desktop (md+): normal sticky sidebar. -->
+            <aside id="filterSidebar" class="fixed md:static top-0 left-0 z-50 md:z-auto
+                    w-72 max-w-[85%] md:w-64 md:max-w-none h-full md:h-auto
+                    bg-white md:bg-transparent shrink-0
+                    transform -translate-x-full md:translate-x-0
+                    transition-transform duration-300 ease-in-out
+                    overflow-y-auto md:overflow-visible shadow-2xl md:shadow-none">
+                <div class="rounded-xl p-5 md:sticky md:top-4">
 
                     <div class="flex items-center justify-between mb-4">
                         <h2 class="text-sm font-bold text-gray-800 uppercase tracking-widest">Filters</h2>
-                        <button type="button" id="clearFiltersBtn"
-                            class="text-xs text-amber-500 hover:text-amber-600 font-medium">Clear</button>
+                        <div class="flex items-center gap-3">
+                            <button type="button" id="clearFiltersBtn"
+                                class="text-xs text-amber-500 hover:text-amber-600 font-medium">Clear</button>
+                            <button type="button" id="closeFilterBtn" onclick="closeFilterDrawer()"
+                                class="md:hidden w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                title="Close filters">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Sale Only -->
@@ -112,9 +130,13 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
 
                     <!-- Category -->
                     <?php if (!empty($availableCategories)): ?>
-                        <div class="mb-5 pb-5 border-b border-gray-100">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">Category</p>
-                            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                        <details class="filter-dropdown group mb-5 pb-5 border-b border-gray-100" open>
+                            <summary
+                                class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                            </summary>
+                            <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableCategories as $catName): ?>
                                     <label
                                         class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-amber-600">
@@ -125,14 +147,18 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                                     </label>
                                 <?php endforeach; ?>
                             </div>
-                        </div>
+                        </details>
                     <?php endif; ?>
 
                     <!-- Color -->
                     <?php if (!empty($availableColors)): ?>
-                        <div class="mb-5 pb-5 border-b border-gray-100">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">Color</p>
-                            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                        <details class="filter-dropdown group mb-5 pb-5 border-b border-gray-100" open>
+                            <summary
+                                class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Color</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                            </summary>
+                            <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableColors as $cName): ?>
                                     <label
                                         class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-amber-600">
@@ -143,14 +169,18 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                                     </label>
                                 <?php endforeach; ?>
                             </div>
-                        </div>
+                        </details>
                     <?php endif; ?>
 
                     <!-- Size -->
                     <?php if (!empty($availableSizes)): ?>
-                        <div class="mb-5 pb-5 border-b border-gray-100">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">Size</p>
-                            <div class="space-y-1.5 max-h-40 overflow-y-auto">
+                        <details class="filter-dropdown group mb-5 pb-5 border-b border-gray-100" open>
+                            <summary
+                                class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Size</span>
+                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                            </summary>
+                            <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableSizes as $sName): ?>
                                     <label
                                         class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer hover:text-amber-600">
@@ -161,40 +191,57 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                                     </label>
                                 <?php endforeach; ?>
                             </div>
-                        </div>
+                        </details>
                     <?php endif; ?>
 
                     <!-- Price Range -->
-                    <div class="mb-5">
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">Price Range</p>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="filter_min_price" placeholder="₱<?= number_format($priceLo, 0) ?>"
-                                value="<?= $minPriceFilter !== null ? htmlspecialchars((string) $minPriceFilter) : '' ?>"
-                                min="0" step="0.01"
-                                class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
-                            <span class="text-gray-300 text-xs">–</span>
-                            <input type="number" id="filter_max_price" placeholder="₱<?= number_format($priceHi, 0) ?>"
-                                value="<?= $maxPriceFilter !== null ? htmlspecialchars((string) $maxPriceFilter) : '' ?>"
-                                min="0" step="0.01"
-                                class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
+                    <details class="filter-dropdown group mb-5" open>
+                        <summary
+                            class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Price Range</span>
+                            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                        </summary>
+                        <div class="mt-2.5">
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="filter_min_price" placeholder="₱<?= number_format($priceLo, 0) ?>"
+                                    value="<?= $minPriceFilter !== null ? htmlspecialchars((string) $minPriceFilter) : '' ?>"
+                                    min="0" step="0.01"
+                                    class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
+                                <span class="text-gray-300 text-xs">–</span>
+                                <input type="number" id="filter_max_price" placeholder="₱<?= number_format($priceHi, 0) ?>"
+                                    value="<?= $maxPriceFilter !== null ? htmlspecialchars((string) $maxPriceFilter) : '' ?>"
+                                    min="0" step="0.01"
+                                    class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1.5">
+                                Available range: ₱<?= number_format($priceLo, 2) ?> – ₱<?= number_format($priceHi, 2) ?>
+                            </p>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-1.5">
-                            Available range: ₱<?= number_format($priceLo, 2) ?> – ₱<?= number_format($priceHi, 2) ?>
-                        </p>
-                    </div>
+                    </details>
+
+                    <!-- Mobile: apply button so users can confirm and close the drawer -->
+                    <button type="button" onclick="closeFilterDrawer()"
+                        class="md:hidden w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition">
+                        Apply Filters
+                    </button>
 
                 </div>
             </aside>
 
             <!-- ═══════════════ PRODUCT AREA ═══════════════ -->
-            <div class="flex-1 flex flex-col">
+            <div class="flex-1 flex flex-col min-w-0">
 
                 <!-- Header row -->
                 <div class="flex items-center gap-3 mb-5">
+                    <button type="button" id="openFilterBtn"
+                        class="md:hidden shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-lg hover:border-amber-400 hover:text-amber-600 transition">
+                        <i class="fa-solid fa-sliders"></i> Filters
+                    </button>
+
                     <h1 class="text-lg md:text-xl font-bold text-gray-900 shrink-0">Shop</h1>
 
                     <!-- Realtime search input -->
-                    <div class="relative w-48 md:w-64">
+                    <div class="relative w-full md:w-64">
                         <i
                             class="fa-solid fa-magnifying-glass absolute left-0 top-1/2 -translate-y-1/2 text-gray-300 text-xs pointer-events-none"></i>
                         <input type="text" id="searchInput" value="<?= htmlspecialchars($searchQuery) ?>"
@@ -331,6 +378,28 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             tick();
             promoInterval = setInterval(tick, 1000);
         }
+
+        // ── Mobile filter drawer ──────────────────────────────────────────────────────
+        function openFilterDrawer() {
+            document.getElementById('filterSidebar').classList.remove('-translate-x-full');
+            document.getElementById('filterSidebar').classList.add('translate-x-0');
+            document.getElementById('filterOverlay').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeFilterDrawer() {
+            document.getElementById('filterSidebar').classList.add('-translate-x-full');
+            document.getElementById('filterSidebar').classList.remove('translate-x-0');
+            document.getElementById('filterOverlay').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.getElementById('openFilterBtn').addEventListener('click', openFilterDrawer);
+
+        // Close drawer with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeFilterDrawer();
+        });
 
         // ── Collect filters into a URLSearchParams ────────────────────────────────────
         function collectFilters(page = 1) {
