@@ -79,7 +79,7 @@ include ROOT_PATH . '/network/connect.php';
 
 <body class="bg-gray-50">
 
-    <div class="max-w-2xl mx-auto px-6 py-8">
+    <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
         <a href="<?= BASE_URL ?>/profile"
             class="inline-flex items-center gap-1.5 text-xs md:text-sm text-gray-400 hover:text-amber-500 transition mb-4 md:mb-6">
             <i class="fa-solid fa-arrow-left text-xs"></i> Back
