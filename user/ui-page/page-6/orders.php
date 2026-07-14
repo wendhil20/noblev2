@@ -22,7 +22,7 @@ $statusTabs = buildStatusTabs($orders);
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
-    <div class="max-w-3xl mx-auto px-4 py-6 flex-1 w-full">
+    <div class="max-w-7xl mx-auto px-4 py-3 pb-24 md:pb-5">
 
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-lg font-semibold text-gray-900">My Orders</h1>
@@ -47,10 +47,68 @@ $statusTabs = buildStatusTabs($orders);
 
     </div>
 
+    <!-- ═══════════════ ORDER DETAILS MODAL (labas ng #ordersDynamic — hindi apektado ng polling) ═══════════════ -->
+    <div id="orderModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
+        onclick="closeOrderModalBackdrop(event)">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto relative" onclick="event.stopPropagation()">
+            <div class="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between z-10">
+                <div class="min-w-0">
+                    <p id="modalOrderRef" class="text-sm font-semibold text-gray-900"></p>
+                    <p id="modalOrderMeta" class="text-xs text-gray-400"></p>
+                </div>
+                <button onclick="closeOrderModal()" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modalOrderBody" class="p-4"></div>
+        </div>
+    </div>
+
     <script>
         window.ORDERS_POLL_URL = BASE_URL + "/orders-poll";
+
+        // ── Order details modal ──────────────────────────────────────────────────────
+        function openOrderModal(orderId) {
+            const row = document.querySelector(`.order-row[data-order-id="${orderId}"]`);
+            const template = document.getElementById(`order-template-${orderId}`);
+            if (!row || !template) return;
+
+            document.getElementById('modalOrderRef').textContent =
+                row.querySelector('a').textContent.trim();
+            document.getElementById('modalOrderMeta').textContent =
+                row.querySelector('.text-gray-400').textContent.trim();
+
+            const body = document.getElementById('modalOrderBody');
+            body.innerHTML = '';
+            body.appendChild(template.content.cloneNode(true));
+
+            document.querySelectorAll('.order-row').forEach(r => r.classList.remove('bg-indigo-50/60'));
+            row.classList.add('bg-indigo-50/60');
+
+            const modal = document.getElementById('orderModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeOrderModal() {
+            const modal = document.getElementById('orderModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.classList.remove('overflow-hidden');
+
+            document.querySelectorAll('.order-row').forEach(r => r.classList.remove('bg-indigo-50/60'));
+        }
+
+        function closeOrderModalBackdrop(e) {
+            if (e.target.id === 'orderModal') closeOrderModal();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeOrderModal();
+        });
     </script>
-    
+
     <script>
         (function () {
             const POLL_INTERVAL_MS = 8000;
@@ -63,19 +121,15 @@ $statusTabs = buildStatusTabs($orders);
             let lastVersions = {};
 
             function getOpenOrderIds() {
-                const open = new Set();
-                dynamicEl.querySelectorAll('.order-row[open]').forEach(function (row) {
-                    open.add(row.dataset.orderId);
-                });
-                return open;
+                // Modal state na lang ang ginagamit natin ngayon (hindi na
+                // <details open>), kaya wala nang open state na kailangang
+                // i-preserve dito. Pinapanatili lang ang function shape
+                // para hindi masira ang ibang tumatawag dito.
+                return new Set();
             }
 
             function restoreOpenState(openIds) {
-                dynamicEl.querySelectorAll('.order-row').forEach(function (row) {
-                    if (openIds.has(row.dataset.orderId)) {
-                        row.setAttribute('open', '');
-                    }
-                });
+                // No-op na — modal-based na ang view ng order details.
             }
 
             function applyFilters() {
@@ -155,7 +209,12 @@ $statusTabs = buildStatusTabs($orders);
             }
 
             async function poll() {
-                if (isPolling || document.hidden) return;
+                // Huwag mag-poll habang bukas ang modal — hindi natin gustong
+                // magbago ang laman ng list habang tinitingnan ng user ang
+                // detalye ng isang order.
+                const modal = document.getElementById('orderModal');
+                if (isPolling || document.hidden || (modal && !modal.classList.contains('hidden'))) return;
+
                 isPolling = true;
                 try {
                     const res = await fetch(window.ORDERS_POLL_URL, {

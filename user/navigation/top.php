@@ -825,5 +825,13 @@ function squigglyUnderline()
                 });
             });
         });
+
+        function forceHideLoader() {
+            loaderOverlay.classList.add('hidden');
+            loaderOverlay.style.display = 'none';
+        }
+
+        window.addEventListener('pageshow', forceHideLoader);
+        forceHideLoader(); // extra safety sa unang load
     })();
 </script>
