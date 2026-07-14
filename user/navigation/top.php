@@ -204,7 +204,8 @@ function squigglyUnderline()
                             class="p-1 rounded-full hover:ring-2 hover:ring-orange-400 transition-all duration-150 focus:outline-none">
                             <?php if (!empty($_SESSION['user_avatar'])): ?>
                                 <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>"
-                                    alt="<?= htmlspecialchars($_SESSION['user_name']) ?>"
+                                    alt="<?= htmlspecialchars($_SESSION['user_name']) ?>" referrerpolicy="no-referrer"
+                                    onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold',textContent:'<?= strtoupper(substr($_SESSION['user_name'], 0, 1)) ?>'}))"
                                     class="w-8 h-8 rounded-full object-cover" />
                             <?php else: ?>
                                 <div
@@ -382,7 +383,8 @@ function squigglyUnderline()
             <div class="flex items-center gap-3 px-4 py-4 bg-orange-50 border-b border-orange-100">
                 <?php if (!empty($_SESSION['user_avatar'])): ?>
                     <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>"
-                        alt="<?= htmlspecialchars($_SESSION['user_name']) ?>"
+                        alt="<?= htmlspecialchars($_SESSION['user_name']) ?>" referrerpolicy="no-referrer"
+                        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold shrink-0',textContent:'<?= strtoupper(substr($_SESSION['user_name'], 0, 1)) ?>'}))"
                         class="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-orange-300" />
                 <?php else: ?>
                     <div
@@ -428,20 +430,21 @@ function squigglyUnderline()
             <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pt-2 pb-1">Quick Links</p>
             <a href="<?= BASE_URL ?>/cartview"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <i class="fa-solid fa-cart-flatbed"></i>
+                <i class="fa-solid fa-cart-flatbed text-lg w-5 text-center"></i>
                 Cart
             </a>
             <a href="<?= BASE_URL ?>/saved"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <i class="fa-solid fa-bookmark text-lg"></i>
+                <i class="fa-solid fa-bookmark text-lg w-5 text-center"></i>
                 Saved Items
             </a>
             <a href="<?= BASE_URL ?>/system-notifications"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                <i class="fa-sharp fa-solid fa-message text-lg"></i>
+                <i class="fa-sharp fa-solid fa-message text-lg w-5 text-center"></i>
                 System Notifications
             </a>
         </div>
+
 
         <?php if ($isLoggedIn): ?>
             <!-- Account Links -->
@@ -545,12 +548,11 @@ function squigglyUnderline()
     <button id="mobile-bottomnav-menu-toggle"
         class="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium text-gray-500 focus:outline-none">
         <?php if ($isLoggedIn && !empty($_SESSION['user_avatar'])): ?>
-            <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>" alt="" class="w-5 h-5 rounded-full object-cover" />
+            <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>" alt="" referrerpolicy="no-referrer"
+                onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'fa-solid fa-circle-user text-lg'}))"
+                class="w-5 h-5 rounded-full object-cover" />
         <?php else: ?>
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M5.121 17.804A9 9 0 1119 12a9 9 0 01-13.879 5.804zM15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <i class="fa-solid fa-circle-user text-lg"></i>
         <?php endif; ?>
         <?= $isLoggedIn ? 'Account' : 'Menu' ?>
     </button>

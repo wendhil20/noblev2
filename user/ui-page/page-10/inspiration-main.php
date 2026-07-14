@@ -18,16 +18,12 @@ include ROOT_PATH . '/network/connect.php';
 
     <?php include ROOT_PATH . '/user/navigation/top.php'; ?>
 
-
     <div class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
 
-
-
-    </div>
-
+    </div> 
    
-
     <?php include ROOT_PATH . '/user/navigation/bottom.php'; ?>
+
 </body>
 
 </html> 

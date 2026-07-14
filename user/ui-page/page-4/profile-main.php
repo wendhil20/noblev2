@@ -26,7 +26,7 @@ include ROOT_PATH . '/network/connect.php';
         <div class="flex-shrink-0">
           <?php if (!empty($_SESSION['user_avatar'])): ?>
             <img src="<?= htmlspecialchars($_SESSION['user_avatar']) ?>" alt="Profile Photo"
-              class="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-amber-400">
+              class="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-amber-400" loading="lazy">
           <?php else: ?>
             <div class="w-24 h-24 md:w-28 md:h-28 rounded-full bg-amber-100 border-4 border-amber-400 flex items-center justify-center">
               <span class="text-amber-600 text-4xl font-bold">

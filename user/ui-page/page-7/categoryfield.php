@@ -97,7 +97,7 @@ $stmt->close();
         <div class="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-amber-400 flex items-center justify-center overflow-hidden bg-white p-2 shrink-0">
             <?php if (!empty($category['image'])): ?>
                 <img src="<?= BASE_URL . '/' . htmlspecialchars($category['image']) ?>"
-                     alt="<?= htmlspecialchars($category['name']) ?>" class="w-full h-full object-contain">
+                     alt="<?= htmlspecialchars($category['name']) ?>" class="w-full h-full object-contain" loading="lazy">
             <?php else: ?>
                 <i class="fa-solid fa-layer-group text-xl text-gray-300"></i>
             <?php endif; ?>
@@ -141,7 +141,7 @@ $stmt->close();
                         <?php if (!empty($sub['image'])): ?>
                             <img src="<?= BASE_URL . '/' . htmlspecialchars($sub['image']) ?>"
                                  alt="<?= htmlspecialchars($sub['name']) ?>"
-                                 class="w-full h-full object-contain">
+                                 class="w-full h-full object-contain" loading="lazy">
                         <?php else: ?>
                             <i class="fa-solid fa-image text-xl md:text-2xl <?= $isActive ? 'text-amber-500' : 'text-gray-300' ?>"></i>
                         <?php endif; ?>

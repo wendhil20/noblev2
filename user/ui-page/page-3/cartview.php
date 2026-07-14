@@ -226,7 +226,7 @@ $LOW_STOCK_THRESHOLD = 5;
                                 <?php if ($image): ?>
                                     <img src="<?= $uploadUrl . htmlspecialchars($image) ?>"
                                         alt="<?= htmlspecialchars($item['product_name']) ?>"
-                                        class="w-full h-full object-contain p-1">
+                                        class="w-full h-full object-contain p-1" loading="lazy">
                                 <?php else: ?>
                                     <i class="fa-solid fa-image text-2xl text-gray-200"></i>
                                 <?php endif; ?>
@@ -410,7 +410,9 @@ $LOW_STOCK_THRESHOLD = 5;
 
         <?php endif; ?>
     </div>
+
     <?php include ROOT_PATH . '/user/navigation/bottom.php'; ?>
+
     <script>
         const updateCartUrl = <?= json_encode(BASE_URL . '/cartupdate') ?>;
         const removeCartUrl = <?= json_encode(BASE_URL . '/cartremove') ?>;

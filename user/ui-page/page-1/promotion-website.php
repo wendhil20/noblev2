@@ -22,7 +22,7 @@ while ($row = $psResult->fetch_assoc())
                 <?php if (!empty($site['image'])): ?>
                     <img src="<?= BASE_URL ?>/uploads/promotionwebsite/<?= htmlspecialchars($site['image']) ?>"
                         alt="<?= htmlspecialchars($site['name']) ?>"
-                        class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500">
+                        class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" loading="lazy">
                 <?php endif; ?>
 
                 <!-- Gradient overlay + text -->

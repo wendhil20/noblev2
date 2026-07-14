@@ -57,16 +57,16 @@
                 <h4 class="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 sm:mb-4">Contact</h4>
                 <ul class="space-y-2 sm:space-y-3">
                     <li class="flex items-start gap-2 text-xs sm:text-sm text-gray-500">
-                        <i class="fa-solid fa-location-dot text-amber-400 mt-0.5 shrink-0"></i>
+                        <i class="fa-solid fa-location-dot text-black mt-0.5 w-4 text-center shrink-0"></i>
                         <span>2nd Floor MC Premier building 1181 Edsa Balintawak Quezon City</span>
                     </li>
                     <li class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-                        <i class="fa-solid fa-phone text-amber-400 shrink-0"></i>
-                        <a href="tel:+639123456789" class="hover:text-amber-500 transition-colors">09922394563 / (02) 8822-1295</a>
+                        <i class="fa-solid fa-phone text-black w-4 text-center shrink-0"></i>
+                        <a href="tel:+639922394563" class="hover:text-amber-500 transition-colors">09922394563 / (02) 8822-1295</a>
                     </li>
                     <li class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-                        <i class="fa-solid fa-envelope text-amber-400 shrink-0"></i>
-                        <a href="mailto:support@noblehome.ph" class="hover:text-amber-500 transition-colors">noblehomeconst.ph@gmail.com</a>
+                        <i class="fa-solid fa-envelope text-black w-4 text-center shrink-0"></i>
+                        <a href="mailto:noblehomeconst.ph@gmail.com" class="hover:text-amber-500 transition-colors">noblehomeconst.ph@gmail.com</a>
                     </li>
                 </ul>
             </div>

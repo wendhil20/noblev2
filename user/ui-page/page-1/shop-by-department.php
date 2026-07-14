@@ -62,7 +62,7 @@ while ($row = $deptResult->fetch_assoc())
                                 <?php if (!empty($dept['image'])): ?>
                                     <img src="<?= BASE_URL . '/' . htmlspecialchars($dept['image']) ?>"
                                          alt="<?= htmlspecialchars($dept['name']) ?>"
-                                         class="w-full h-full object-contain">
+                                         class="w-full h-full object-contain" loading="lazy">
                                 <?php else: ?>
                                     <div class="w-full h-full flex items-center justify-center text-gray-300">
                                         <i class="fa-solid fa-layer-group text-xl md:text-3xl"></i>

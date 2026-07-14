@@ -222,7 +222,7 @@ if ($isLoggedIn) {
                             <img id="main-image" src="<?= $uploadUrl . htmlspecialchars($product['imageproduct']) ?>"
                                 alt="<?= htmlspecialchars($product['name']) ?>"
                                 class="max-h-52 md:max-h-80 object-contain w-full transition-opacity duration-200"
-                                draggable="false">
+                                draggable="false" loading="lazy">
                             <!-- Lens overlay -->
                             <div id="zoom-lens"
                                 class="hidden absolute border-2 border-amber-400 bg-white/20 pointer-events-none"
@@ -491,7 +491,7 @@ if ($isLoggedIn) {
                                 <div
                                     class="w-9 h-9 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                     <?php if (!empty($r['avatar'])): ?>
-                                        <img src="<?= htmlspecialchars($r['avatar']) ?>" class="w-full h-full object-cover">
+                                        <img src="<?= htmlspecialchars($r['avatar']) ?>" class="w-full h-full object-cover" loading="lazy">
                                     <?php else: ?>
                                         <i class="fa-solid fa-user text-gray-300 text-sm"></i>
                                     <?php endif; ?>

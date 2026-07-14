@@ -551,7 +551,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             document.getElementById('modalProductName').textContent = product.name;
             const imgWrap = document.getElementById('modalProductImage');
             imgWrap.innerHTML = product.image
-                ? `<img src="${product.image}" class="w-full h-full object-contain p-1">`
+                ? `<img src="${product.image}" class="w-full h-full object-contain p-1" loading="lazy">`
                 : `<i class="fa-solid fa-image text-2xl text-gray-200"></i>`;
 
             document.getElementById('modalProductPrice').textContent = '';

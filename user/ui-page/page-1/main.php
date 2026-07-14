@@ -29,7 +29,7 @@ while ($row = $promoResult->fetch_assoc())
 
 <body class="">
 
- <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
+    <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
 
         <!-- ===== PROMOTION BANNERS ===== -->
         <?php if (!empty($promotions)): ?>
@@ -45,9 +45,9 @@ while ($row = $promoResult->fetch_assoc())
                                 <?php if ($promo['banner_image']): ?>
                                     <img src="<?= BASE_URL ?>/uploads/promotions/<?= htmlspecialchars($promo['banner_image']) ?>"
                                         alt="<?= htmlspecialchars($promo['title']) ?>" data-slide-img="<?= $i ?>"
-                                        class="w-full h-auto block">
+                                        class="w-full h-auto block" loading="lazy">
                                 <?php endif; ?>
-                           
+
                             </a>
                         <?php endforeach; ?>
                     </div>
@@ -111,57 +111,61 @@ while ($row = $promoResult->fetch_assoc())
             <?php include ROOT_PATH . '/user/ui-page/page-1/new-arrivals.php'; ?>
         </section>
 
-<section class="hidden md:block">
-    <div class="max-w-6xl mx-auto px-4 py-8 md:py-12">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 text-center">
+        <section class="hidden md:block">
+            <div class="max-w-6xl mx-auto px-4 py-8 md:py-12">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-4 text-center">
 
-            <!-- Quality Products -->
-            <div class="flex flex-col items-center">
-                <div class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                    <i class="fa-solid fa-truck text-gray-700 text-lg md:text-xl"></i>
+                    <!-- Quality Products -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-truck text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Quality products</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            All products are carefully inspected to ensure top-notch quality.
+                        </p>
+                    </div>
+
+                    <!-- Support Services -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-headset text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Support Services</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Monday - Friday 8:00 AM - 5:00 PM · Saturday 8:00 AM - 12:00 PM
+                        </p>
+                    </div>
+
+                    <!-- Secured Payment -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-dollar-sign text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Secured Payment</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Safe and encrypted payment options for your peace of mind.
+                        </p>
+                    </div>
+
+                    <!-- Exclusive Deals -->
+                    <div class="flex flex-col items-center">
+                        <div
+                            class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                            <i class="fa-solid fa-tag text-gray-700 text-lg md:text-xl"></i>
+                        </div>
+                        <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Exclusive Deals & Discounts</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
+                            Get special offers and discounts when you shop with us.
+                        </p>
+                    </div>
+
                 </div>
-                <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Quality products</h3>
-                <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
-                    All products are carefully inspected to ensure top-notch quality.
-                </p>
             </div>
-
-            <!-- Support Services -->
-            <div class="flex flex-col items-center">
-                <div class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                    <i class="fa-solid fa-headset text-gray-700 text-lg md:text-xl"></i>
-                </div>
-                <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Support Services</h3>
-                <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
-                    Monday - Friday 8:00 AM - 5:00 PM · Saturday 8:00 AM - 12:00 PM
-                </p>
-            </div>
-
-            <!-- Secured Payment -->
-            <div class="flex flex-col items-center">
-                <div class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                    <i class="fa-solid fa-dollar-sign text-gray-700 text-lg md:text-xl"></i>
-                </div>
-                <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Secured Payment</h3>
-                <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
-                    Safe and encrypted payment options for your peace of mind.
-                </p>
-            </div>
-
-            <!-- Exclusive Deals -->
-            <div class="flex flex-col items-center">
-                <div class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                    <i class="fa-solid fa-tag text-gray-700 text-lg md:text-xl"></i>
-                </div>
-                <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Exclusive Deals & Discounts</h3>
-                <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
-                    Get special offers and discounts when you shop with us.
-                </p>
-            </div>
-
-        </div>
-    </div>
-</section>
+        </section>
     </div>
 
     <?php if (!empty($promotions) && count($promotions) > 1): ?>
