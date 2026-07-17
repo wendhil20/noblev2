@@ -68,6 +68,18 @@ $priceStmt->execute();
 $priceRange = $priceStmt->get_result()->fetch_assoc();
 $priceStmt->close();
 
+// ─── Total sold for this product ────────────────────────────────────────
+$soldStmt = $conn->prepare("
+    SELECT COALESCE(SUM(v.sold), 0) as total_sold
+    FROM nobleproductvariant v
+    JOIN nobleproductcolor c ON c.id = v.color_id
+    WHERE c.product_id = ?
+");
+$soldStmt->bind_param("i", $productId);
+$soldStmt->execute();
+$totalSold = intval($soldStmt->get_result()->fetch_assoc()['total_sold'] ?? 0);
+$soldStmt->close();
+
 // ─── Active promos (date-based discount timer, per-color/size or general) ──
 $productPromos = [];
 $promoStmt = $conn->prepare("
@@ -175,6 +187,17 @@ if ($isLoggedIn) {
     }
     $vcStmt->close();
 }
+
+if (!function_exists('formatSoldCount')) {
+    function formatSoldCount($n)
+    {
+        $n = intval($n);
+        if ($n >= 1000) {
+            return rtrim(rtrim(number_format($n / 1000, 1), '0'), '.') . 'K';
+        }
+        return number_format($n);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -280,20 +303,30 @@ if ($isLoggedIn) {
                     </h1>
 
                     <?php if ($totalReviews > 0): ?>
-                        <button type="button"
-                            onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
-                            class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
-                            <span class="flex items-center gap-0.5">
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i
-                                        class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
-                                <?php endfor; ?>
-                            </span>
-                            <span class="text-xs text-gray-500 font-medium"><?= number_format($avgRating, 1) ?></span>
-                            <span class="text-xs text-gray-400">(<?= $totalReviews ?>
-                                review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
-                        </button>
-                    <?php endif; ?>
+    <button type="button"
+        onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
+        class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
+        <span class="flex items-center gap-0.5">
+            <?php for ($i = 1; $i <= 5; $i++): ?>
+                <i
+                    class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+            <?php endfor; ?>
+        </span>
+        <span class="text-xs text-gray-500 font-medium"><?= number_format($avgRating, 1) ?></span>
+        <span class="text-xs text-gray-400">(<?= $totalReviews ?>
+            review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
+        <?php if ($totalSold > 0): ?>
+            <span class="text-gray-300">·</span>
+            <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
+        <?php endif; ?>
+    </button>
+<?php else: ?>
+    <?php if ($totalSold > 0): ?>
+        <div class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
+            <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
+        </div>
+    <?php endif; ?>
+<?php endif; ?>
 
                     <div class="flex items-center gap-2 mb-1.5 md:mb-2">
                         <div id="price-display">
@@ -552,10 +585,7 @@ if ($isLoggedIn) {
         let productCartQty = <?= json_encode($currentProductCartQty) ?>; // mutable — updated after successful add
         // ───────────────────────────────────────────────────────────────────
 
-        // ─── Cart qty PER VARIANT (mutable) — para ma-detect kaagad kung ilan
-        // na ang laman ng specific na color/size combination sa cart ng user,
-        // kaya ang "available stock" na ipapakita ay TALAGANG matitira pa,
-        // hindi yung buong raw stock ulit kahit meron nang laman sa cart. ───
+      
         const variantCartQty = <?= json_encode($variantCartQty) ?>; // variant_id => qty already in cart
 
         function getAvailableStock(variant) {
@@ -564,12 +594,9 @@ if ($isLoggedIn) {
             const inCart = variantCartQty[variant.id] || 0;
             return Math.max(0, raw - inCart);
         }
-        // ───────────────────────────────────────────────────────────────────
+     
 
-        // ─── Realtime sync: i-refetch ang cart state kapag may nagbago sa cart
-        // (dagdag/bawas/tanggal), kahit galing pa sa cart dropdown na hiwalay na
-        // script/component sa page na ito. Walang full reload — dine-diff lang
-        // ang variantCartQty tapos ire-render ulit ang kasalukuyang selection. ──
+      
         let isRefreshingCartQty = false;
 
         async function refreshVariantCartQty() {
@@ -915,10 +942,6 @@ if ($isLoggedIn) {
                 if (variant) {
                     btn.style.display = '';
                     btn.classList.remove('selected');
-                    // "Unavailable" (line-through + disabled) dapat lang kapag TALAGANG
-                    // 0 na ang raw stock sa DB. Kung meron pa namang stock pero puro
-                    // laman na ng cart ng user, dapat piliin pa rin — ipapakita na lang
-                    // sa stock label/add-to-cart button na "already in your cart".
                     const rawStock = parseInt(variant.stock, 10) || 0;
                     const outOfStock = rawStock <= 0;
                     btn.classList.toggle('unavailable', outOfStock);
@@ -1098,20 +1121,12 @@ if ($isLoggedIn) {
                     showToast(data.limit_reached ? 'warning' : 'success', data.msg || 'Added to cart!');
                     window.dispatchEvent(new CustomEvent('noblecart:changed'));
 
-                    const counter = document.getElementById('cart-count');
-                    if (counter && data.cart_count !== undefined) {
-                        counter.textContent = data.cart_count;
-                        counter.classList.remove('hidden');
-                    }
-
                     if (data.product_qty_in_cart !== undefined) {
                         productCartQty = data.product_qty_in_cart;
                     }
 
                     if (data.remaining_stock !== undefined) {
-                        // I-sync ang variantCartQty base sa remaining_stock na ibinalik ng
-                        // server (raw stock - totoong laman na ng cart pagkatapos mag-add) —
-                        // dito magmumula ang susunod na real-time na "available" computation.
+
                         const variant = variantMap[selectedColorIndex]?.[selectedSizeName];
                         if (variant) {
                             const rawStock = parseInt(variant.stock, 10) || 0;
@@ -1122,12 +1137,7 @@ if ($isLoggedIn) {
                         updateStockLabel();
 
                         if (data.remaining_stock <= 0) {
-                            // Huwag i-mark na "unavailable" (line-through/disabled) dito —
-                            // ang remaining_stock na 0 ay pwedeng dahil lang na-max out ng
-                            // sariling cart ng user, hindi dahil totoong ubos na sa DB.
-                            // Totoong out-of-stock lang (rawStock <= 0) ang dapat markahan
-                            // ng unavailable — ginagawa na yun sa server error branch sa baba
-                            // (data.out_of_stock) kung sakaling mag-race sa totoong stock.
+
                             hideQtySection();
                         } else if (isLimitReached() || !canMeetMinimum()) {
                             hideQtySection();

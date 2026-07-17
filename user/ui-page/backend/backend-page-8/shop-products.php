@@ -229,6 +229,8 @@ function buildPageUrl(array $base, int $pageNum): string {
 // ── Render HTML ──────────────────────────────────────────────────────────────
 ob_start();
 ?>
+
+
 <?php if (empty($products)): ?>
     <div class="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
         <i class="fa-solid fa-box-open text-5xl mb-4"></i>

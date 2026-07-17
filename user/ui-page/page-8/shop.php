@@ -83,7 +83,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
     <div id="filterOverlay" class="fixed inset-0 bg-black/40 z-40 hidden md:hidden" onclick="closeFilterDrawer()"></div>
 
     <div class="max-w-7xl mx-auto px-3 py-2 pb-24 md:pb-5">
-        <div class="flex flex-col md:flex-row gap-6">
+        <div class="flex flex-col md:flex-row gap-3">
 
             <!-- ═══════════════ SIDEBAR FILTERS ═══════════════ -->
             <!-- Mobile: fixed off-canvas drawer sliding from the left. Desktop (md+): normal sticky sidebar. -->
@@ -260,7 +260,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
 
                 <!-- Product grid (populated by AJAX) -->
                 <div id="products-area"
-                    class="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5 content-start">
+                    class="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 content-start">
                     <!-- skeleton shown on first load -->
                 </div>
 
@@ -709,12 +709,8 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 const data = await res.json();
 
                 if (data.ok) {
-                    showToast('success', data.msg || 'Added to cart!');
-                    const counter = document.getElementById('cart-count');
-                    if (counter && data.cart_count !== undefined) {
-                        counter.textContent = data.cart_count;
-                        counter.classList.remove('hidden');
-                    }
+                    showToast(data.limit_reached ? 'warning' : 'success', data.msg || 'Added to cart!');
+                    window.dispatchEvent(new CustomEvent('noblecart:changed'));
                     closeAddToCartModal();
                 } else {
                     showToast('error', data.msg || 'Failed to add to cart.');

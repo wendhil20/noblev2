@@ -260,12 +260,12 @@
     });
 
     // Load badge count agad pag-load ng page (hindi na maghintay ng hover)
-    fetchMiniCart();
+fetchMiniCart();
 
-    // Pag hover, kuha ulit ng latest data — dito yung "realtime" feel
-    wrapper.addEventListener('mouseenter', fetchMiniCart);
+// Pag hover, kuha ulit ng latest data — dito yung "realtime" feel
+wrapper.addEventListener('mouseenter', fetchMiniCart);
 
-    // I-expose globally para magamit mo sa "Add to Cart" buttons mo (tex. cart-add.php success)
-    window.refreshMiniCart = fetchMiniCart;
+// Pag may nagbago sa cart (add/update/remove galing ibang parte ng page) — i-refresh agad
+window.addEventListener('noblecart:changed', fetchMiniCart);
 })();
 </script>
