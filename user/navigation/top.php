@@ -13,17 +13,10 @@ $isCartPageActive = $currentPath === rtrim(parse_url(BASE_URL . '/cartview', PHP
 // Reusable squiggly underline SVG (hand-drawn style)
 function squigglyUnderline()
 {
-    return '<svg class="absolute left-0 -bottom-2 w-full h-3 pointer-events-none" viewBox="0 0 100 12" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M2,6 C15,2 25,9 38,5 C50,1 60,9 72,4 C82,0 90,7 98,5"
-              stroke="#f97316" stroke-width="2.5" fill="none" stroke-linecap="round" />
-    </svg>';
+    return '<i class="fa-solid fa-caret-up absolute left-1/2 -translate-x-1/2 -bottom-3 pointer-events-none"></i>';
 }
 ?>
 
-<!-- ===================== GLOBAL PAGE LOADER (Uiverse.io by boryanakrasteva) ===================== -->
-<!-- NOTE: this stays plain CSS (not Tailwind arbitrary-value classes) because sites with a
-     compiled/purged Tailwind build won't generate classes like animate-[pulse_4923_2s_linear_infinite]
-     unless that exact string was already scanned at build time — plain CSS always renders regardless. -->
 <style>
     #page-loader-overlay {
         position: fixed;
@@ -242,7 +235,7 @@ function squigglyUnderline()
                             <div class="py-1">
                                 <a href="<?= BASE_URL ?>/profile"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <i class="fa-sharp fa-solid fa-id-badge w-4 text-center"></i>
+                                   <i class="fa-solid fa-user  w-4 text-center"></i>
                                     My Profile
                                 </a>
                                 <a href="<?= BASE_URL ?>/orders"

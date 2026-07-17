@@ -232,7 +232,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             <div class="flex-1 flex flex-col min-w-0">
 
                 <!-- Header row -->
-                <div class="flex items-center gap-3 mb-5">
+                <div class="flex items-center gap-3 mb-5 mt-4">
                     <button type="button" id="openFilterBtn"
                         class="md:hidden shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-lg hover:border-amber-400 hover:text-amber-600 transition">
                         <i class="fa-solid fa-sliders"></i> Filters
@@ -251,8 +251,6 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                             <i class="fa-solid fa-circle-notch fa-spin text-amber-400 text-xs"></i>
                         </span>
                     </div>
-
-
                 </div>
 
                 <!-- Product grid (populated by AJAX) -->

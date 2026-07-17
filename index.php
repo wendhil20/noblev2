@@ -214,6 +214,7 @@ $routes = [
     // pages 2
     'mainproductview'                       => 'user/ui-page/page-2/mainproductview.php',
     'cartadd'                               => 'user/ui-page/backend/backend-page-2/cart-add.php',
+    'cart-variant-qty'                      => 'user/ui-page/backend/backend-page-2/cart-variant-qty.php',
 
     // pages 3
     'cartview'                              => 'user/ui-page/page-3/cartview.php',

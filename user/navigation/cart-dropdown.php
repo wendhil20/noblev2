@@ -173,6 +173,10 @@
             // (subtotal, stock labels, atbp.) — simple lang at always in sync
             await fetchMiniCart();
 
+            // I-broadcast na may nagbago sa cart, para ma-realtime din ang ibang
+            // bahagi ng page (hal. mainproductview) na umaasa sa cart state
+            window.dispatchEvent(new CustomEvent('noblecart:changed'));
+
             if (!data.ok) {
                 showMiniError(data.msg || 'Update failed.');
             }
@@ -194,6 +198,10 @@
             const data = await res.json();
 
             await fetchMiniCart();
+
+            // I-broadcast na may nagbago sa cart (item removal), para ma-realtime
+            // din ang ibang bahagi ng page (hal. mainproductview)
+            window.dispatchEvent(new CustomEvent('noblecart:changed'));
 
             if (!data.ok) {
                 showMiniError(data.msg || 'Failed to remove item.');

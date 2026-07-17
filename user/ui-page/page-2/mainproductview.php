@@ -80,10 +80,10 @@ $promoStmt->execute();
 $promoResult = $promoStmt->get_result();
 while ($row = $promoResult->fetch_assoc()) {
     $productPromos[] = [
-        'color_id'         => $row['color_id'] !== null ? intval($row['color_id']) : null, // null = all colors
-        'sizename'         => $row['sizename'], // null = all sizes
+        'color_id' => $row['color_id'] !== null ? intval($row['color_id']) : null, // null = all colors
+        'sizename' => $row['sizename'], // null = all sizes
         'discount_percent' => floatval($row['discount_percent']),
-        'end_date'         => $row['end_date'],
+        'end_date' => $row['end_date'],
     ];
 }
 $promoStmt->close();
@@ -155,6 +155,26 @@ if ($isLoggedIn) {
     $currentProductCartQty = intval($cartQtyStmt->get_result()->fetch_assoc()['total'] ?? 0);
     $cartQtyStmt->close();
 }
+
+// ─── Cart qty PER VARIANT (para malaman kung ilan na ang laman sa cart para sa
+// bawat specific na color/size combination — dito kukunin ang TOTOONG available
+// stock: raw stock minus quantity na nasa cart na ng user, hindi basta raw stock) ──
+$variantCartQty = []; // variant_id => qty already in cart
+if ($isLoggedIn) {
+    $vcStmt = $conn->prepare("
+        SELECT variant_id, SUM(quantity) as qty
+        FROM noblecart
+        WHERE user_id = ? AND product_id = ?
+        GROUP BY variant_id
+    ");
+    $vcStmt->bind_param("ii", $_SESSION['user_id'], $productId);
+    $vcStmt->execute();
+    $vcRes = $vcStmt->get_result();
+    while ($row = $vcRes->fetch_assoc()) {
+        $variantCartQty[intval($row['variant_id'])] = intval($row['qty']);
+    }
+    $vcStmt->close();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -215,13 +235,13 @@ if ($isLoggedIn) {
             <div class="grid grid-cols-1 md:grid-cols-2">
 
                 <!-- Image -->
-                <div class="bg-gray-50 flex items-center justify-center p-6 md:p-10 min-h-56 md:min-h-80">
+                <div class="bg-white flex items-center justify-center p-6 md:p-10 min-h-56 md:min-h-80">
                     <?php if (!empty($product['imageproduct'])): ?>
                         <div id="img-zoom-container" class="relative overflow-hidden cursor-crosshair select-none"
-                            style="width:100%; max-width:400px;">
+                            style="width:100%; max-width:600px;">
                             <img id="main-image" src="<?= $uploadUrl . htmlspecialchars($product['imageproduct']) ?>"
                                 alt="<?= htmlspecialchars($product['name']) ?>"
-                                class="max-h-52 md:max-h-80 object-contain w-full transition-opacity duration-200"
+                                class="max-h-52 md:max-h-[650px] object-contain w-full transition-opacity duration-200"
                                 draggable="false" loading="lazy">
                             <!-- Lens overlay -->
                             <div id="zoom-lens"
@@ -318,7 +338,7 @@ if ($isLoggedIn) {
                         </div>
 
                         <!-- Sizes -->
-                        <div class="mb-4 md:mb-5" id="size-section" style="display:none;">
+                        <div class="mb-4 md:mb-5" id="size-section">
                             <p
                                 class="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 md:mb-2">
                                 Size <span id="selected-size-label" class="text-amber-600 normal-case font-normal"></span>
@@ -336,7 +356,7 @@ if ($isLoggedIn) {
                         </div>
 
                         <!-- Quantity -->
-                        <div class="mb-4 md:mb-5 hidden" id="qty-section">
+                        <div class="mb-4 md:mb-5" id="qty-section">
                             <p
                                 class="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 md:mb-2">
                                 Quantity <span id="qty-limit-note" class="text-gray-400 normal-case font-normal"></span>
@@ -387,151 +407,10 @@ if ($isLoggedIn) {
             </div>
         </div>
 
-        <?php
-        $specs = !empty($product['specifications']) ? json_decode($product['specifications'], true) : [];
-        $gallery = !empty($product['gallery']) ? json_decode($product['gallery'], true) : [];
-        ?>
+        <?php include ROOT_PATH . '/user/ui-page/page-2/producttabs.php'; ?>
+        <?php include ROOT_PATH . '/user/ui-page/page-2/relatedproducts.php'; ?>
 
-        <!-- ════════ Tabs Card: Specs / Gallery / Reviews — laging lumalabas dahil may Reviews tab na ════════ -->
-        <div class="bg-white rounded-xl md:rounded-2xl border border-gray-100 shadow-sm mt-4 md:mt-6 overflow-hidden">
 
-            <!-- Tab Nav -->
-            <div class="flex border-b border-gray-100 overflow-x-auto">
-                <?php if (!empty($specs)): ?>
-                    <button onclick="switchTab('specs')" id="tab-specs"
-                        class="tab-btn px-5 md:px-8 py-3 md:py-4 text-xs md:text-sm font-semibold text-amber-500 border-b-2 border-amber-500 transition whitespace-nowrap">
-                        <i class="fa-solid fa-list-check mr-1.5"></i> Specifications
-                    </button>
-                <?php endif; ?>
-                <?php if (!empty($gallery)): ?>
-                    <button onclick="switchTab('gallery')" id="tab-gallery"
-                        class="tab-btn px-5 md:px-8 py-3 md:py-4 text-xs md:text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-600 transition whitespace-nowrap">
-                        <i class="fa-regular fa-images mr-1.5"></i> Collection
-                    </button>
-                <?php endif; ?>
-                <button onclick="switchTab('reviews')" id="tab-reviews"
-                    class="tab-btn px-5 md:px-8 py-3 md:py-4 text-xs md:text-sm font-semibold <?= (empty($specs)) ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-400 border-b-2 border-transparent hover:text-gray-600' ?> transition whitespace-nowrap">
-                    <i class="fa-solid fa-star mr-1.5"></i> Reviews
-                    <?php if ($totalReviews > 0): ?>
-                        <span class="ml-1 text-[10px] text-gray-400">(<?= $totalReviews ?>)</span>
-                    <?php endif; ?>
-                </button>
-            </div>
-
-            <!-- Specs Panel -->
-            <?php if (!empty($specs)): ?>
-                <div id="panel-specs" class="px-5 md:px-8 py-2 divide-y divide-gray-50">
-                    <?php foreach ($specs as $key => $val): ?>
-                        <div class="flex items-center gap-6 py-3">
-                            <span class="text-xs md:text-sm text-gray-400 font-medium w-40 shrink-0">
-                                <?= htmlspecialchars($key) ?>
-                            </span>
-                            <span class="text-xs md:text-sm text-gray-800 font-medium">
-                                <?= htmlspecialchars($val) ?>
-                            </span>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-
-            <!-- Gallery Panel -->
-            <?php if (!empty($gallery)): ?>
-                <div id="panel-gallery" class="p-5 md:p-8 hidden">
-                    <div id="masonry-gallery" style="display: flex; gap: 10px;">
-                        <div class="masonry-col" style="flex: 1; display: flex; flex-direction: column; gap: 10px;"></div>
-                        <div class="masonry-col" style="flex: 1; display: flex; flex-direction: column; gap: 10px;"></div>
-                        <div class="masonry-col" style="flex: 1; display: flex; flex-direction: column; gap: 10px;"></div>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Reviews Panel -->
-            <div id="panel-reviews" class="p-5 md:p-8 <?= (empty($specs)) ? '' : 'hidden' ?>">
-
-                <?php if ($totalReviews === 0): ?>
-                    <div class="text-center py-10 text-gray-400 text-sm">
-                        <i class="fa-regular fa-comment-dots text-3xl mb-2 block"></i>
-                        No reviews yet for this product.
-                    </div>
-                <?php else: ?>
-
-                    <!-- Summary -->
-                    <div
-                        class="flex flex-col sm:flex-row items-start sm:items-center gap-6 pb-6 border-b border-gray-100 mb-6">
-                        <div class="text-center shrink-0">
-                            <p class="text-3xl md:text-4xl font-bold text-gray-900"><?= number_format($avgRating, 1) ?></p>
-                            <div class="flex items-center justify-center gap-0.5 mt-1">
-                                <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i
-                                        class="fa-star text-sm <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
-                                <?php endfor; ?>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-1"><?= $totalReviews ?>
-                                review<?= $totalReviews !== 1 ? 's' : '' ?></p>
-                        </div>
-
-                        <div class="flex-1 w-full space-y-1.5">
-                            <?php for ($star = 5; $star >= 1; $star--): ?>
-                                <?php $pct = $totalReviews > 0 ? round(($ratingBreakdown[$star] / $totalReviews) * 100) : 0; ?>
-                                <div class="flex items-center gap-2 text-xs">
-                                    <span class="text-gray-500 w-8 shrink-0"><?= $star ?>★</span>
-                                    <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                        <div class="h-full bg-amber-400 rounded-full" style="width: <?= $pct ?>%"></div>
-                                    </div>
-                                    <span class="text-gray-400 w-8 text-right shrink-0"><?= $ratingBreakdown[$star] ?></span>
-                                </div>
-                            <?php endfor; ?>
-                        </div>
-                    </div>
-
-                    <!-- Individual reviews -->
-                    <div class="space-y-5">
-                        <?php foreach ($reviews as $r): ?>
-                            <div class="flex gap-3">
-                                <div
-                                    class="w-9 h-9 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                                    <?php if (!empty($r['avatar'])): ?>
-                                        <img src="<?= htmlspecialchars($r['avatar']) ?>" class="w-full h-full object-cover" loading="lazy">
-                                    <?php else: ?>
-                                        <i class="fa-solid fa-user text-gray-300 text-sm"></i>
-                                    <?php endif; ?>
-                                </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                                        <p class="text-sm font-semibold text-gray-800"><?= htmlspecialchars($r['name']) ?></p>
-                                        <span class="text-[11px] text-gray-400">
-                                            <?= htmlspecialchars(date('M d, Y', strtotime($r['created_at']))) ?>
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center gap-0.5 mt-0.5 mb-1.5">
-                                        <?php for ($i = 1; $i <= 5; $i++): ?>
-                                            <i
-                                                class="fa-star text-xs <?= $i <= (int) $r['rating'] ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
-                                        <?php endfor; ?>
-                                    </div>
-                                    <?php if (!empty($r['comment'])): ?>
-                                        <p class="text-xs md:text-sm text-gray-600 leading-relaxed">
-                                            <?= nl2br(htmlspecialchars($r['comment'])) ?>
-                                        </p>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-
-                <?php endif; ?>
-            </div>
-
-        </div>
-    </div>
-
-    <div id="lightbox" onclick="closeLightbox()"
-        class="fixed inset-0 z-50 bg-black/85 flex items-center justify-center hidden p-4 md:p-8">
-        <button onclick="closeLightbox()"
-            class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition text-lg z-10">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-        <img id="lightbox-img" src="" alt="" class="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl">
     </div>
 
     <script>
@@ -584,7 +463,63 @@ if ($isLoggedIn) {
                 if (img.complete) initZoom(img);
                 else img.addEventListener('load', () => initZoom(img));
             }
+
+            showDefaultPreview(); // price/stock preview lang — walang selected na color/size
         });
+
+        // ─── Display-only preview (WALANG select) ──────────────────────────────
+
+        function showDefaultPreview() {
+            if (!colors.length) return;
+
+            let colorIndex = colors.findIndex(c => c.variants.some(v => getAvailableStock(v) > 0));
+            if (colorIndex === -1) colorIndex = 0;
+
+            const colorVariants = variantMap[colorIndex] || {};
+            const sizeNames = Object.keys(colorVariants);
+            if (!sizeNames.length) return;
+
+            let sizeName = sizeNames.find(sn => getAvailableStock(colorVariants[sn]) > 0);
+            if (!sizeName) sizeName = sizeNames[0];
+
+            const variant = colorVariants[sizeName];
+            if (!variant || !(variant.pricesize > 0)) return;
+
+            const colorId = colors[colorIndex].id;
+            const stock = getAvailableStock(variant);
+            const originalPrice = parseFloat(variant.pricesize);
+            const baseDiscount = getEffectiveDiscount(variant.discountvariant, colorId, sizeName);
+            const tierDiscount = resolveTierDiscount(1); // qty 1 pa lang, walang tier discount na tama
+            const effectiveDiscount = Math.max(baseDiscount, tierDiscount);
+            const discounted = effectiveDiscount > 0 ? originalPrice * (1 - effectiveDiscount / 100) : originalPrice;
+
+            // Price display
+            const priceEl = document.getElementById('price-display');
+            if (priceEl) {
+                let html = `<span class="text-base md:text-xl font-bold text-gray-900">₱${discounted.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+                if (effectiveDiscount > 0) {
+                    html += ` <span class="text-xs md:text-sm text-gray-400 line-through ml-1">₱${originalPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
+                    html += ` <span class="text-xs md:text-sm text-red-400 font-semibold ml-1">-${effectiveDiscount}%</span>`;
+                }
+                priceEl.innerHTML = html;
+            }
+
+            // Stock info (preview lang, kaya walang "min. order" check pa dahil
+            // walang selected qty/variant talaga)
+            const stockEl = document.getElementById('stock-info');
+            if (stockEl) {
+                if (stock <= 0) {
+                    stockEl.innerHTML = '<span class="text-red-500 font-medium"><i class="fa-solid fa-circle-exclamation mr-1"></i>Out of stock</span>';
+                } else if (stock <= LOW_STOCK_THRESHOLD) {
+                    stockEl.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${stock} left in stock</span>`;
+                } else {
+                    stockEl.innerHTML = `<span class="text-green-600"><i class="fa-solid fa-circle-check mr-1"></i>In stock — ${stock} available</span>`;
+                }
+            }
+
+            // Promo timer, kung meron
+            updatePromoTimer(colorId, sizeName);
+        }
 
         function patchZoomOnImgChange() {
             const img = document.getElementById('main-image');
@@ -599,6 +534,8 @@ if ($isLoggedIn) {
         const colors = <?= json_encode(array_values($colors), JSON_HEX_TAG) ?>;
         const uploadUrl = <?= json_encode($uploadUrl) ?>;
         const addCartUrl = <?= json_encode(BASE_URL . '/cartadd') ?>;
+        const cartVariantQtyUrl = <?= json_encode(BASE_URL . '/cart-variant-qty') ?>;
+        const productId = <?= json_encode($productId) ?>;
         const defaultImg = <?= json_encode($product['imageproduct'] ?? '') ?>;
         const defaultPriceHtml = <?= json_encode(
             ($min > 0 || $max > 0)
@@ -615,11 +552,77 @@ if ($isLoggedIn) {
         let productCartQty = <?= json_encode($currentProductCartQty) ?>; // mutable — updated after successful add
         // ───────────────────────────────────────────────────────────────────
 
+        // ─── Cart qty PER VARIANT (mutable) — para ma-detect kaagad kung ilan
+        // na ang laman ng specific na color/size combination sa cart ng user,
+        // kaya ang "available stock" na ipapakita ay TALAGANG matitira pa,
+        // hindi yung buong raw stock ulit kahit meron nang laman sa cart. ───
+        const variantCartQty = <?= json_encode($variantCartQty) ?>; // variant_id => qty already in cart
+
+        function getAvailableStock(variant) {
+            if (!variant) return 0;
+            const raw = parseInt(variant.stock, 10) || 0;
+            const inCart = variantCartQty[variant.id] || 0;
+            return Math.max(0, raw - inCart);
+        }
+        // ───────────────────────────────────────────────────────────────────
+
+        // ─── Realtime sync: i-refetch ang cart state kapag may nagbago sa cart
+        // (dagdag/bawas/tanggal), kahit galing pa sa cart dropdown na hiwalay na
+        // script/component sa page na ito. Walang full reload — dine-diff lang
+        // ang variantCartQty tapos ire-render ulit ang kasalukuyang selection. ──
+        let isRefreshingCartQty = false;
+
+        async function refreshVariantCartQty() {
+            if (isRefreshingCartQty) return;
+            isRefreshingCartQty = true;
+            try {
+                const res = await fetch(`${cartVariantQtyUrl}?product_id=${productId}`, { credentials: 'same-origin' });
+                const data = await res.json();
+                if (!data.ok) return;
+
+                // I-replace ang laman ng variantCartQty base sa pinaka-latest na estado
+                Object.keys(variantCartQty).forEach(k => delete variantCartQty[k]);
+                Object.entries(data.variant_qty || {}).forEach(([k, v]) => { variantCartQty[k] = v; });
+
+                productCartQty = data.product_qty || 0;
+
+                // I-render ulit ang currently selected variant (kung meron), o yung
+                // default preview kung wala pang color/size na napili
+                if (selectedColorIndex !== null && selectedSizeName !== null) {
+                    resolveVariant();
+                } else if (selectedColorIndex === null) {
+                    showDefaultPreview();
+                }
+                updateCartBtn();
+            } catch (e) {
+                // Tahimik lang palyahin — hindi dapat makasira ng UX kung saglit
+                // lang nawalan ng connection; susubukan ulit sa susunod na trigger
+            } finally {
+                isRefreshingCartQty = false;
+            }
+        }
+
+        // Trigger 1: custom event na ide-dispatch ng cart dropdown / cartview
+        // pagkatapos ng successful add/update/remove sa cart
+        window.addEventListener('noblecart:changed', refreshVariantCartQty);
+
+        // Trigger 2: pag bumalik ang focus sa tab/window (hal. galing ibang tab
+        // na nag-edit ng cart, o galing ibang app)
+        window.addEventListener('focus', refreshVariantCartQty);
+
+        // Trigger 3: pag naging visible ulit ang tab (mas maaasahan sa mobile
+        // kaysa sa 'focus' lang)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) refreshVariantCartQty();
+        });
+        // ───────────────────────────────────────────────────────────────────
+
         let selectedColorIndex = null;
         let selectedColorId = null;
         let selectedSizeName = null;
         let selectedVariantId = null;
-        let selectedVariantStock = 0;
+        let selectedVariantStock = 0;    // available = raw stock minus quantity already in user's cart
+        let selectedVariantRawStock = 0; // totoong stock sa DB, hindi binabawasan ng laman ng cart
         let selectedQty = 1;
 
         const LOW_STOCK_THRESHOLD = 5;
@@ -637,7 +640,7 @@ if ($isLoggedIn) {
             let best = null;
             productPromos.forEach(promo => {
                 const colorMatches = promo.color_id === null || promo.color_id === colorId;
-                const sizeMatches  = promo.sizename === null || promo.sizename === sizeName;
+                const sizeMatches = promo.sizename === null || promo.sizename === sizeName;
                 if (colorMatches && sizeMatches && (!best || promo.discount_percent > best.discount_percent)) {
                     best = promo;
                 }
@@ -693,11 +696,6 @@ if ($isLoggedIn) {
         // ──────────────────────────────────────────────────────────────────
 
         // ─── Single source of truth for the unit price of the current variant ──
-        // (base price + variant/promo discount only, NOT including the qty-tier yet).
-        // This avoids the old bug: previously, when you moved to a qty that had
-        // a tier discount, the price-display HTML would get mutated incrementally,
-        // and when you moved to a qty that had NO tier discount, it wouldn't get
-        // reset back — leaving a stale discounted price even though it should be 0%.
         let currentVariantOriginalPrice = 0;
         let currentVariantBaseDiscountPercent = 0;
 
@@ -710,8 +708,6 @@ if ($isLoggedIn) {
                 return;
             }
 
-            // Effective discount = the larger of (variant/promo discount) and (qty-tier discount)
-            // — same as the old logic (Math.max), they don't stack.
             const tierDiscountPercent = resolveTierDiscount(selectedQty);
             const effectiveDiscount = Math.max(currentVariantBaseDiscountPercent, tierDiscountPercent);
             const original = currentVariantOriginalPrice;
@@ -730,8 +726,6 @@ if ($isLoggedIn) {
             if (!el) return;
             if (!currentVariantOriginalPrice || selectedVariantStock <= 0) { el.classList.add('hidden'); return; }
 
-            // Re-render price-display first based on the current qty —
-            // this is the only place that builds the discount HTML, always whole/deterministic.
             renderPriceDisplay();
 
             const subtotal = currentVariantOriginalPrice * selectedQty;
@@ -746,15 +740,11 @@ if ($isLoggedIn) {
 
         // ─── Quantity ──────────────────────────────────────────────────
         function showQtySection() {
-            // Start at the minimum quantity (if any), not always 1
             selectedQty = productQtyMin > 1 ? Math.min(productQtyMin, getEffectiveMaxQtyRaw()) : 1;
-            const el = document.getElementById('qty-section');
-            if (el) el.classList.remove('hidden');
             refreshQtyUI();
             refreshDiscountHint();
         }
 
-        // Max possible based only on stock/order-limit, not yet accounting for the UI clamp
         function getEffectiveMaxQtyRaw() {
             const stockMax = selectedVariantStock > 0 ? selectedVariantStock : 1;
             if (productQtyLimit <= 0) return stockMax;
@@ -764,12 +754,14 @@ if ($isLoggedIn) {
 
         function hideQtySection() {
             selectedQty = 1;
-            const el = document.getElementById('qty-section');
-            if (el) el.classList.add('hidden');
             const disp = document.getElementById('qty-display');
             if (disp) disp.textContent = '1';
             const lbl = document.getElementById('qty-max-label');
             if (lbl) lbl.textContent = '';
+            const minus = document.getElementById('qty-minus');
+            const plus = document.getElementById('qty-plus');
+            if (minus) minus.disabled = true;
+            if (plus) plus.disabled = true;
             const fp = document.getElementById('final-price-display');
             if (fp) fp.classList.add('hidden');
             const hint = document.getElementById('qty-discount-hint');
@@ -784,9 +776,6 @@ if ($isLoggedIn) {
             selectedQty = Math.max(floor, Math.min(selectedQty + delta, max));
             refreshQtyUI();
             refreshDiscountHint();
-            // recompute the price — the re-render is always whole/deterministic,
-            // so even if qty moves back into a range with no tier discount,
-            // the result is still correct (no leftover stale discount).
             updateFinalPrice();
         }
 
@@ -816,7 +805,6 @@ if ($isLoggedIn) {
                 }
             }
 
-            // Show a reminder if the product has a minimum quantity requirement
             if (minNote && minNoteText) {
                 if (productQtyMin > 1) {
                     minNoteText.textContent = `This product requires ${productQtyMin} pcs or more per add-to-cart.`;
@@ -839,6 +827,7 @@ if ($isLoggedIn) {
 
         function clearStockInfo() {
             selectedVariantStock = 0;
+            selectedVariantRawStock = 0;
             const el = document.getElementById('stock-info');
             if (el) el.innerHTML = '';
         }
@@ -849,19 +838,28 @@ if ($isLoggedIn) {
 
             if (!selectedVariantId) { el.innerHTML = ''; return; }
 
-            if (selectedVariantStock <= 0) {
+            const inCart = variantCartQty[selectedVariantId] || 0;
+
+            if (selectedVariantRawStock <= 0) {
+                // Totoong out of stock — walang natitira kahit sino pa mag-order
                 el.innerHTML = '<span class="text-red-500 font-medium"><i class="fa-solid fa-circle-exclamation mr-1"></i>Out of stock</span>';
+            } else if (selectedVariantStock <= 0) {
+                // May stock pa naman, pero nasa cart mo na lahat ng natitira
+                el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-cart-shopping mr-1"></i>You already have ${inCart} pcs of this in your cart (max stock reached)</span>`;
             } else if (!canMeetMinimum()) {
                 el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${selectedVariantStock} left — not enough for the min. order of ${productQtyMin} pcs</span>`;
             } else if (selectedVariantStock <= LOW_STOCK_THRESHOLD) {
-                el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${selectedVariantStock} left in stock</span>`;
+                el.innerHTML = `<span class="text-amber-600 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Only ${selectedVariantStock} left in stock</span>` +
+                    (inCart > 0 ? ` <span class="text-gray-400 font-normal">(${inCart} already in your cart)</span>` : '');
             } else {
-                el.innerHTML = `<span class="text-green-600"><i class="fa-solid fa-circle-check mr-1"></i>In stock — ${selectedVariantStock} available</span>`;
+                el.innerHTML = `<span class="text-green-600"><i class="fa-solid fa-circle-check mr-1"></i>In stock — ${selectedVariantStock} available</span>` +
+                    (inCart > 0 ? ` <span class="text-gray-400 font-normal">(${inCart} already in your cart)</span>` : '');
             }
         }
 
         function selectColor(index) {
             if (selectedColorIndex === index) {
+                // ── UNSELECT COLOR ────────────────────────────────────────────
                 document.getElementById('color-btn-' + index).classList.remove('selected');
                 selectedColorIndex = null;
                 selectedColorId = null;
@@ -873,13 +871,20 @@ if ($isLoggedIn) {
                 hideQtySection();
                 document.getElementById('selected-color-label').textContent = '';
                 document.getElementById('selected-size-label').textContent = '';
-                document.getElementById('size-section').style.display = 'none';
                 resetImage();
-                document.getElementById('price-display').innerHTML = defaultPriceHtml;
+
+                document.querySelectorAll('.size-btn').forEach(btn => {
+                    btn.style.display = '';
+                    btn.classList.remove('selected', 'unavailable');
+                    btn.disabled = false;
+                });
+
+                showDefaultPreview(); // ibalik yung generic price/stock preview
                 updateCartBtn();
                 return;
             }
 
+            // ── SELECT COLOR ────────────────────────────────────────────────
             colors.forEach((_, i) => {
                 document.getElementById('color-btn-' + i).classList.toggle('selected', i === index);
             });
@@ -903,8 +908,6 @@ if ($isLoggedIn) {
                 }
             }
 
-            document.getElementById('size-section').style.display = '';
-
             const colorVariants = variantMap[index] || {};
             document.querySelectorAll('.size-btn').forEach(btn => {
                 const sizeName = btn.dataset.size;
@@ -912,7 +915,12 @@ if ($isLoggedIn) {
                 if (variant) {
                     btn.style.display = '';
                     btn.classList.remove('selected');
-                    const outOfStock = parseInt(variant.stock, 10) <= 0;
+                    // "Unavailable" (line-through + disabled) dapat lang kapag TALAGANG
+                    // 0 na ang raw stock sa DB. Kung meron pa namang stock pero puro
+                    // laman na ng cart ng user, dapat piliin pa rin — ipapakita na lang
+                    // sa stock label/add-to-cart button na "already in your cart".
+                    const rawStock = parseInt(variant.stock, 10) || 0;
+                    const outOfStock = rawStock <= 0;
                     btn.classList.toggle('unavailable', outOfStock);
                     btn.disabled = outOfStock;
                 } else {
@@ -933,6 +941,8 @@ if ($isLoggedIn) {
                 document.getElementById('size-btn-' + sizeName).classList.remove('selected');
                 selectedSizeName = null;
                 selectedVariantId = null;
+                currentVariantOriginalPrice = 0;
+                currentVariantBaseDiscountPercent = 0;
                 clearStockInfo();
                 hideQtySection();
                 document.getElementById('selected-size-label').textContent = '';
@@ -947,8 +957,9 @@ if ($isLoggedIn) {
                             ? `<span class="text-base md:text-xl font-bold text-gray-900">₱${cMin.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`
                             : `<span class="text-base md:text-xl font-bold text-gray-900">₱${cMin.toLocaleString('en-PH', { minimumFractionDigits: 2 })} – ₱${cMax.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
                     }
+                    updatePromoTimer(null); // ← FIX: clear/hide the leftover promo countdown, no size selected anymore
                 } else {
-                    document.getElementById('price-display').innerHTML = defaultPriceHtml;
+                    showDefaultPreview();
                 }
                 patchZoomOnImgChange();
                 updateCartBtn();
@@ -970,7 +981,8 @@ if ($isLoggedIn) {
             const variant = variantMap[selectedColorIndex]?.[selectedSizeName] ?? null;
             if (variant) {
                 selectedVariantId = variant.id;
-                selectedVariantStock = parseInt(variant.stock, 10) || 0;
+                selectedVariantRawStock = parseInt(variant.stock, 10) || 0;
+                selectedVariantStock = getAvailableStock(variant);
 
                 if (variant.pricesize > 0) {
                     currentVariantOriginalPrice = parseFloat(variant.pricesize);
@@ -1006,8 +1018,14 @@ if ($isLoggedIn) {
             if (selectedColorId && selectedSizeName && selectedVariantId) {
                 if (selectedVariantStock <= 0) {
                     btn.disabled = true;
-                    btn.className = `${base} bg-red-50 text-red-400 cursor-not-allowed`;
-                    btn.innerHTML = '<i class="fa-solid fa-ban mr-2"></i> Out of stock';
+                    if (selectedVariantRawStock <= 0) {
+                        btn.className = `${base} bg-red-50 text-red-400 cursor-not-allowed`;
+                        btn.innerHTML = '<i class="fa-solid fa-ban mr-2"></i> Out of stock';
+                    } else {
+                        const inCart = variantCartQty[selectedVariantId] || 0;
+                        btn.className = `${base} bg-amber-50 text-amber-600 cursor-not-allowed`;
+                        btn.innerHTML = `<i class="fa-solid fa-cart-shopping mr-2"></i> Already in your cart (${inCart} pcs — max stock)`;
+                    }
                 } else if (isLimitReached()) {
                     btn.disabled = true;
                     btn.className = `${base} bg-amber-50 text-amber-600 cursor-not-allowed`;
@@ -1040,7 +1058,11 @@ if ($isLoggedIn) {
             const btn = document.getElementById('add-to-cart-btn');
 
             if (selectedVariantStock <= 0) {
-                showToast('error', 'This item is out of stock.');
+                if (selectedVariantRawStock <= 0) {
+                    showToast('error', 'This item is out of stock.');
+                } else {
+                    showToast('warning', `You already have all available stock (${variantCartQty[selectedVariantId] || 0} pcs) of this in your cart.`);
+                }
                 updateCartBtn();
                 return;
             }
@@ -1052,8 +1074,6 @@ if ($isLoggedIn) {
             }
 
             const qty = selectedQty || 1;
-
-            // ─── Hard floor: every single Add to Cart action must be ≥ minimum ──
 
             if (productQtyMin > 1 && qty < productQtyMin) {
                 showToast('warning', `You need ${productQtyMin} pcs or more per add-to-cart for this product.`);
@@ -1076,6 +1096,7 @@ if ($isLoggedIn) {
 
                 if (data.ok) {
                     showToast(data.limit_reached ? 'warning' : 'success', data.msg || 'Added to cart!');
+                    window.dispatchEvent(new CustomEvent('noblecart:changed'));
 
                     const counter = document.getElementById('cart-count');
                     if (counter && data.cart_count !== undefined) {
@@ -1083,27 +1104,34 @@ if ($isLoggedIn) {
                         counter.classList.remove('hidden');
                     }
 
-                    // Sync the total product qty in cart, from the backend (source of truth)
                     if (data.product_qty_in_cart !== undefined) {
                         productCartQty = data.product_qty_in_cart;
                     }
 
                     if (data.remaining_stock !== undefined) {
+                        // I-sync ang variantCartQty base sa remaining_stock na ibinalik ng
+                        // server (raw stock - totoong laman na ng cart pagkatapos mag-add) —
+                        // dito magmumula ang susunod na real-time na "available" computation.
+                        const variant = variantMap[selectedColorIndex]?.[selectedSizeName];
+                        if (variant) {
+                            const rawStock = parseInt(variant.stock, 10) || 0;
+                            variantCartQty[selectedVariantId] = Math.max(0, rawStock - data.remaining_stock);
+                        }
+
                         selectedVariantStock = data.remaining_stock;
                         updateStockLabel();
 
-                        const variant = variantMap[selectedColorIndex]?.[selectedSizeName];
-                        if (variant) variant.stock = data.remaining_stock;
-
                         if (data.remaining_stock <= 0) {
-                            const sizeBtn = document.getElementById('size-btn-' + selectedSizeName);
-                            if (sizeBtn) { sizeBtn.classList.add('unavailable'); sizeBtn.disabled = true; }
+                            // Huwag i-mark na "unavailable" (line-through/disabled) dito —
+                            // ang remaining_stock na 0 ay pwedeng dahil lang na-max out ng
+                            // sariling cart ng user, hindi dahil totoong ubos na sa DB.
+                            // Totoong out-of-stock lang (rawStock <= 0) ang dapat markahan
+                            // ng unavailable — ginagawa na yun sa server error branch sa baba
+                            // (data.out_of_stock) kung sakaling mag-race sa totoong stock.
                             hideQtySection();
                         } else if (isLimitReached() || !canMeetMinimum()) {
-                            // max per order reached, or not enough left to meet the minimum
                             hideQtySection();
                         } else {
-                            // reset qty to minimum (or 1) after successful add, refresh max
                             selectedQty = productQtyMin > 1 ? Math.min(productQtyMin, getEffectiveMaxQtyRaw()) : 1;
                             refreshQtyUI();
                             refreshDiscountHint();
@@ -1148,55 +1176,6 @@ if ($isLoggedIn) {
                 toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
                 toast.classList.remove('opacity-100', 'translate-y-0');
             }, 3000);
-        }
-
-        function switchTab(tab) {
-            const panels = ['specs', 'gallery', 'reviews']; // added 'reviews'
-            panels.forEach(p => {
-                const panel = document.getElementById('panel-' + p);
-                const btn = document.getElementById('tab-' + p);
-                if (!panel || !btn) return;
-                if (p === tab) {
-                    panel.classList.remove('hidden');
-                    btn.classList.add('text-amber-500', 'border-amber-500');
-                    btn.classList.remove('text-gray-400', 'border-transparent');
-                } else {
-                    panel.classList.add('hidden');
-                    btn.classList.remove('text-amber-500', 'border-amber-500');
-                    btn.classList.add('text-gray-400', 'border-transparent');
-                }
-            });
-
-            if (tab === 'gallery' && !window.masonryBuilt) {
-                window.masonryBuilt = true;
-                const galleryFiles = <?= json_encode(array_values($gallery)) ?>;
-                const cols = document.querySelectorAll('.masonry-col');
-                const colHeights = [0, 0, 0];
-                galleryFiles.forEach(filename => {
-                    const minIdx = colHeights.indexOf(Math.min(...colHeights));
-                    const wrapper = document.createElement('div');
-                    wrapper.style.cssText = 'border-radius:12px; overflow:hidden; cursor:pointer;';
-                    wrapper.onclick = () => openLightbox(uploadUrl + filename);
-                    const randomHeight = Math.floor(Math.random() * 120) + 120;
-                    const img = document.createElement('img');
-                    img.src = uploadUrl + filename;
-                    img.style.cssText = `width:100%; height:${randomHeight}px; object-fit:cover; display:block;`;
-                    wrapper.appendChild(img);
-                    cols[minIdx].appendChild(wrapper);
-                    colHeights[minIdx] += randomHeight + 10;
-                });
-            }
-        }
-
-        function openLightbox(src) {
-            document.getElementById('lightbox-img').src = src;
-            document.getElementById('lightbox').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.add('hidden');
-            document.body.style.overflow = '';
         }
 
         function goBackSafe() {
@@ -1246,7 +1225,9 @@ if ($isLoggedIn) {
             promoTimerInterval = setInterval(tick, 1000);
         }
     </script>
+
     <?php include ROOT_PATH . '/user/navigation/bottom.php'; ?>
+
 </body>
 
 </html>

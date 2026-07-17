@@ -96,7 +96,7 @@ $officeBase = $data['officeBase'];
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
-    <div class="max-w-3xl mx-auto px-4 py-8 flex-1 w-full">
+     <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
 
         <a href="<?= BASE_URL ?>/orders"
             class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
