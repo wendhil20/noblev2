@@ -9,7 +9,7 @@ define('QR_SECRET', 'warehouse_secret_2024');
 ?>
 
 <!-- link this page to cdn-->
-<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="<?= BASE_URL ?>/link/css/tailwind.min.css">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
 

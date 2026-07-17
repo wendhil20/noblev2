@@ -135,7 +135,7 @@ function squigglyUnderline()
                 <form action="<?= BASE_URL ?>/shop" method="GET" class="hidden lg:block relative"
                     id="desktop-search-form">
                     <div
-                        class="flex items-center p-1 rounded-lg border overflow-hidden focus-within:ring-1 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all duration-150">
+                        class="flex items-center p-1 rounded-lg border border-gray-100 overflow-hidden focus-within:ring-1 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all duration-150">
                         <div class="flex items-center pl-3 text-gray-400">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <circle cx="11" cy="11" r="8" />
