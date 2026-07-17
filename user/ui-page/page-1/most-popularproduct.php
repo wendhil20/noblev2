@@ -95,7 +95,7 @@ function formatSoldCount($n) {
                         <div class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
                             <?php if (!empty($p['imageproduct'])): ?>
                                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
-                                    alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain" loading="lazy">
+                                    alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain">
                             <?php else: ?>
                                 <div class="w-full h-full flex items-center justify-center text-gray-300">
                                     <i class="fa-solid fa-image text-3xl md:text-5xl"></i>
