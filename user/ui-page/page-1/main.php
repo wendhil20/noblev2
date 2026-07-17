@@ -45,7 +45,7 @@ while ($row = $promoResult->fetch_assoc())
                                 <?php if ($promo['banner_image']): ?>
                                     <img src="<?= BASE_URL ?>/uploads/promotions/<?= htmlspecialchars($promo['banner_image']) ?>"
                                         alt="<?= htmlspecialchars($promo['title']) ?>" data-slide-img="<?= $i ?>"
-                                        class="w-full h-auto block" loading="lazy">
+                                        class="w-full h-auto block">
                                 <?php endif; ?>
 
                             </a>
