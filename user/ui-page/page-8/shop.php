@@ -80,9 +80,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
     </div>
 
     <!-- Mobile filter backdrop -->
-    <div id="filterOverlay"
-        class="fixed inset-0 bg-black/40 z-40 hidden md:hidden"
-        onclick="closeFilterDrawer()"></div>
+    <div id="filterOverlay" class="fixed inset-0 bg-black/40 z-40 hidden md:hidden" onclick="closeFilterDrawer()"></div>
 
     <div class="max-w-7xl mx-auto px-3 py-2 pb-24 md:pb-5">
         <div class="flex flex-col md:flex-row gap-6">
@@ -134,7 +132,8 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                             <summary
                                 class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
                                 <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</span>
-                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                                <i
+                                    class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
                             </summary>
                             <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableCategories as $catName): ?>
@@ -156,7 +155,8 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                             <summary
                                 class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
                                 <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Color</span>
-                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                                <i
+                                    class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
                             </summary>
                             <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableColors as $cName): ?>
@@ -178,7 +178,8 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                             <summary
                                 class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
                                 <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Size</span>
-                                <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                                <i
+                                    class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
                             </summary>
                             <div class="space-y-1.5 max-h-40 overflow-y-auto mt-2.5">
                                 <?php foreach ($availableSizes as $sName): ?>
@@ -198,17 +199,21 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                     <details class="filter-dropdown group mb-5" open>
                         <summary
                             class="flex items-center justify-between cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Price Range</span>
-                            <i class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Price
+                                Range</span>
+                            <i
+                                class="fa-solid fa-chevron-down text-[10px] text-gray-400 transition-transform duration-200 group-open:rotate-180"></i>
                         </summary>
                         <div class="mt-2.5">
                             <div class="flex items-center gap-2">
-                                <input type="number" id="filter_min_price" placeholder="₱<?= number_format($priceLo, 0) ?>"
+                                <input type="number" id="filter_min_price"
+                                    placeholder="₱<?= number_format($priceLo, 0) ?>"
                                     value="<?= $minPriceFilter !== null ? htmlspecialchars((string) $minPriceFilter) : '' ?>"
                                     min="0" step="0.01"
                                     class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
                                 <span class="text-gray-300 text-xs">–</span>
-                                <input type="number" id="filter_max_price" placeholder="₱<?= number_format($priceHi, 0) ?>"
+                                <input type="number" id="filter_max_price"
+                                    placeholder="₱<?= number_format($priceHi, 0) ?>"
                                     value="<?= $maxPriceFilter !== null ? htmlspecialchars((string) $maxPriceFilter) : '' ?>"
                                     min="0" step="0.01"
                                     class="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-amber-400 filter-input">
@@ -348,7 +353,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         let currentPage = <?= max(1, intval($_GET['page'] ?? 1)) ?>;
         let fetchController = null;   // AbortController for in-flight requests
 
-         function startPromoTimers() {
+        function startPromoTimers() {
             if (promoInterval) clearInterval(promoInterval);
 
             function tick() {
@@ -370,7 +375,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
 
                     el.textContent = d > 0
                         ? `${d}d ${h}h left`
-                        : `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                        : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
                 });
             }
             tick();
@@ -429,19 +434,18 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             let html = '';
             for (let i = 0; i < n; i++) {
                 html += `
-        <div class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
-            <div class="aspect-square bg-gray-200"></div>
-            <div class="p-2 md:p-3 space-y-2">
-                <div class="h-3 bg-gray-200 rounded w-3/4"></div>
-                <div class="h-2 bg-gray-200 rounded w-1/2"></div>
-                <div class="h-4 bg-gray-200 rounded w-1/3 mt-2"></div>
-                <div class="h-7 bg-gray-200 rounded mt-2"></div>
-            </div>
-        </div>`;
+    <div class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100 animate-pulse">
+        <div class="aspect-square bg-gray-200 rounded-t-xl md:rounded-t-2xl"></div>
+        <div class="p-2 md:p-3 space-y-2">
+            <div class="h-4 bg-gray-200 rounded" style="width:500px;"></div>
+            <div class="h-3 bg-gray-200 rounded" style="width:500px;"></div>
+            <div class="h-5 bg-gray-200 rounded" style="width:500px;"></div>
+            <div class="h-9 bg-gray-200 rounded-lg w-full mt-2"></div>
+        </div>
+    </div>`;
             }
             return html;
         }
-
         // ── Main fetch function ───────────────────────────────────────────────────────
         async function fetchProducts(page = 1, showSkeleton = true) {
             // Abort any in-flight request
@@ -451,6 +455,9 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             const params = collectFilters(page);
             const area = document.getElementById('products-area');
             const spinner = document.getElementById('searchSpinner');
+
+            const MIN_SKELETON_TIME = 2000; // 2 seconds
+            const skeletonStart = Date.now();
 
             if (showSkeleton) {
                 area.innerHTML = renderSkeletons(8);
@@ -468,11 +475,19 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 });
                 const data = await res.json();
 
+                // Ensure skeleton shows for at least MIN_SKELETON_TIME
+                if (showSkeleton) {
+                    const elapsed = Date.now() - skeletonStart;
+                    if (elapsed < MIN_SKELETON_TIME) {
+                        await new Promise(resolve => setTimeout(resolve, MIN_SKELETON_TIME - elapsed));
+                    }
+                }
+
                 // Merge new product data into global store
                 Object.assign(PRODUCT_DATA, data.product_data ?? {});
 
                 area.innerHTML = data.html;
-                startPromoTimers(); 
+                startPromoTimers();
 
                 const paginationArea = document.getElementById('pagination-area');
                 paginationArea.innerHTML = data.pagination ?? '';
@@ -491,8 +506,8 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             } catch (err) {
                 if (err.name === 'AbortError') return;   // superseded request — ignore
                 area.innerHTML = `<div class="col-span-full text-center py-20 text-gray-400">
-            <i class="fa-solid fa-triangle-exclamation text-4xl mb-3 block"></i>
-            <p>Failed to load products. Please refresh.</p></div>`;
+    <i class="fa-solid fa-triangle-exclamation text-4xl mb-3 block"></i>
+    <p>Failed to load products. Please refresh.</p></div>`;
             } finally {
                 spinner.classList.add('hidden');
             }
