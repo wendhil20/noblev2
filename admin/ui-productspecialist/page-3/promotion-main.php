@@ -17,6 +17,71 @@ $errors = [];
 $success = '';
 $editData = null;
 
+// ---------- helper: convert & save uploaded image as WebP ----------
+function saveImageAsWebp($tmpPath, $destDir, $filenamePrefix, $maxWidth = 2000, $quality = 80)
+{
+    $imageInfo = getimagesize($tmpPath);
+    if ($imageInfo === false) {
+        return ['error' => 'Invalid image file.'];
+    }
+
+    $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF];
+    if (!in_array($imageInfo[2], $allowedTypes)) {
+        return ['error' => 'Unsupported image type.'];
+    }
+
+    switch ($imageInfo[2]) {
+        case IMAGETYPE_JPEG:
+            $src = imagecreatefromjpeg($tmpPath);
+            break;
+        case IMAGETYPE_PNG:
+            $src = imagecreatefrompng($tmpPath);
+            imagepalettetotruecolor($src);
+            imagealphablending($src, true);
+            imagesavealpha($src, true);
+            break;
+        case IMAGETYPE_WEBP:
+            $src = imagecreatefromwebp($tmpPath);
+            break;
+        case IMAGETYPE_GIF:
+            $src = imagecreatefromgif($tmpPath);
+            break;
+        default:
+            $src = false;
+    }
+
+    if ($src === false) {
+        return ['error' => 'Could not process image.'];
+    }
+
+    // Resize down if wider than max width (keeps aspect ratio)
+    $origWidth = imagesx($src);
+    $origHeight = imagesy($src);
+
+    if ($origWidth > $maxWidth) {
+        $newWidth = $maxWidth;
+        $newHeight = intval($origHeight * ($maxWidth / $origWidth));
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagecopyresampled($resized, $src, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+        
+        $src = $resized;
+    }
+
+    $filename = $filenamePrefix . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.webp';
+    $destPath = $destDir . $filename;
+
+    $saved = imagewebp($src, $destPath, $quality);
+  
+
+    if (!$saved) {
+        return ['error' => 'Failed to save image.'];
+    }
+
+    return ['filename' => $filename];
+}
+
 // ---------- handle POST ----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -64,11 +129,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         elseif ($file['size'] > $maxSize)
             $errors[] = 'Image must be 5 MB or smaller.';
         else {
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $imageName = 'banner_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-            if (!move_uploaded_file($file['tmp_name'], $uploadDir . $imageName)) {
-                $errors[] = 'Failed to upload image.';
-                $imageName = null;
+            // Convert to WebP (also resizes down if wider than 2000px, matches recommended banner width)
+            $result = saveImageAsWebp($file['tmp_name'], $uploadDir, 'banner');
+            if (isset($result['error'])) {
+                $errors[] = $result['error'];
+            } else {
+                $imageName = $result['filename'];
             }
         }
     }

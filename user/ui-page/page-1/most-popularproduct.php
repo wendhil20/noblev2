@@ -34,7 +34,8 @@ while ($row = $result->fetch_assoc())
     $products[] = $row;
 
 // Helper to format sold count (e.g. 1,200 -> "1.2K")
-function formatSoldCount($n) {
+function formatSoldCount($n)
+{
     $n = intval($n);
     if ($n >= 1000) {
         return rtrim(rtrim(number_format($n / 1000, 1), '0'), '.') . 'K';
@@ -62,21 +63,23 @@ function formatSoldCount($n) {
 
     <div class="relative">
 
+
         <!-- Left arrow -->
-        <button id="productPrev" onclick="productSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
-               w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
-               hover:bg-gray-50 transition-colors duration-200">
+        <button id="productPrev" onclick="productSlide(-1)" aria-label="Previous product" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
+       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
+       flex items-center justify-center text-gray-600
+       hover:bg-gray-50 transition-colors duration-200">
             <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </button>
 
+
         <!-- Right arrow -->
-        <button id="productNext" onclick="productSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
-               w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
-               hover:bg-gray-50 transition-colors duration-200">
+        <button id="productNext" onclick="productSlide(1)" aria-label="Next product" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
+       w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
+       flex items-center justify-center text-gray-600
+       hover:bg-gray-50 transition-colors duration-200">
             <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
@@ -87,9 +90,10 @@ function formatSoldCount($n) {
             <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
                 id="productTrack">
                 <?php foreach ($products as $p): ?>
-                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
-                      block hover:shadow-lg transition-shadow duration-300 shrink-0
-                      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
+                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
+                        aria-label="View details for <?= htmlspecialchars($p['name']) ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
+      block hover:shadow-lg transition-shadow duration-300 shrink-0
+      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
                         <!-- Image -->
                         <div class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">

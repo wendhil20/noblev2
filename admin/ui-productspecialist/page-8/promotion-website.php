@@ -8,6 +8,74 @@ include ROOT_PATH . '/admin/authentication/index-roles.php';
 $allowedRoles = [ROLE_PRODUCTSPECIALIST];
 include ROOT_PATH . '/admin/authentication/index-roleguard.php';
 
+// ---------- helper: convert & save uploaded image as WebP ----------
+function saveImageAsWebp($tmpPath, $destDir, $filenamePrefix, $maxWidth = 1200, $quality = 80)
+{
+    $imageInfo = getimagesize($tmpPath);
+    if ($imageInfo === false) {
+        return ['error' => 'Invalid image file.'];
+    }
+
+    $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF];
+    if (!in_array($imageInfo[2], $allowedTypes)) {
+        return ['error' => 'Unsupported image type.'];
+    }
+
+    switch ($imageInfo[2]) {
+        case IMAGETYPE_JPEG:
+            $src = imagecreatefromjpeg($tmpPath);
+            break;
+        case IMAGETYPE_PNG:
+            $src = imagecreatefrompng($tmpPath);
+            imagepalettetotruecolor($src);
+            imagealphablending($src, true);
+            imagesavealpha($src, true);
+            break;
+        case IMAGETYPE_WEBP:
+            $src = imagecreatefromwebp($tmpPath);
+            break;
+        case IMAGETYPE_GIF:
+            $src = imagecreatefromgif($tmpPath);
+            break;
+        default:
+            $src = false;
+    }
+
+    if ($src === false) {
+        return ['error' => 'Could not process image.'];
+    }
+
+    // Resize down if wider than max width (keeps aspect ratio)
+    $origWidth = imagesx($src);
+    $origHeight = imagesy($src);
+
+    if ($origWidth > $maxWidth) {
+        $newWidth = $maxWidth;
+        $newHeight = intval($origHeight * ($maxWidth / $origWidth));
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        imagecopyresampled($resized, $src, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+        
+        $src = $resized;
+    }
+
+    if (!is_dir($destDir))
+        mkdir($destDir, 0755, true);
+
+    $filename = $filenamePrefix . '_' . time() . '_' . uniqid() . '.webp';
+    $destPath = $destDir . $filename;
+
+    $saved = imagewebp($src, $destPath, $quality);
+   
+
+    if (!$saved) {
+        return ['error' => 'Failed to save image.'];
+    }
+
+    return ['filename' => $filename];
+}
+
 // ===== HANDLE ACTIONS =====
 
 // Add new
@@ -17,10 +85,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $imageName = null;
 
     if (!empty($_FILES['image']['name'])) {
-        $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-        $imageName = 'promosite_' . time() . '_' . uniqid() . '.' . $ext;
-        $destPath = ROOT_PATH . '/uploads/promotionwebsite/' . $imageName;
-        move_uploaded_file($_FILES['image']['tmp_name'], $destPath);
+        $destDir = ROOT_PATH . '/uploads/promotionwebsite/';
+        $result = saveImageAsWebp($_FILES['image']['tmp_name'], $destDir, 'promosite');
+        if (!isset($result['error'])) {
+            $imageName = $result['filename'];
+        }
     }
 
     if ($name !== '' && $link !== '') {
@@ -41,13 +110,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($id > 0 && $name !== '' && $link !== '') {
         if (!empty($_FILES['image']['name'])) {
-            $ext = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-            $imageName = 'promosite_' . time() . '_' . uniqid() . '.' . $ext;
-            $destPath = ROOT_PATH . '/uploads/promotionwebsite/' . $imageName;
-            move_uploaded_file($_FILES['image']['tmp_name'], $destPath);
+            $destDir = ROOT_PATH . '/uploads/promotionwebsite/';
+            $result = saveImageAsWebp($_FILES['image']['tmp_name'], $destDir, 'promosite');
 
-            $stmt = $conn->prepare("UPDATE noblepromotionwebsite SET name = ?, website_link = ?, image = ? WHERE id = ?");
-            $stmt->bind_param("sssi", $name, $link, $imageName, $id);
+            if (!isset($result['error'])) {
+                $imageName = $result['filename'];
+                $stmt = $conn->prepare("UPDATE noblepromotionwebsite SET name = ?, website_link = ?, image = ? WHERE id = ?");
+                $stmt->bind_param("sssi", $name, $link, $imageName, $id);
+            } else {
+                // image failed validation/processing — update name/link only, keep old image
+                $stmt = $conn->prepare("UPDATE noblepromotionwebsite SET name = ?, website_link = ? WHERE id = ?");
+                $stmt->bind_param("ssi", $name, $link, $id);
+            }
         } else {
             $stmt = $conn->prepare("UPDATE noblepromotionwebsite SET name = ?, website_link = ? WHERE id = ?");
             $stmt->bind_param("ssi", $name, $link, $id);
