@@ -355,7 +355,7 @@ if ($isLoggedIn) {
                         <?php endif; ?>
                     <?php endif; ?>
 
-                    <div class="flex items-center gap-2 mb-1.5 md:mb-2">
+                    <div class="flex flex-wrap items-center gap-2 mb-1.5 md:mb-2">
                         <div id="price-display">
                             <?php if ($min > 0 || $max > 0): ?>
                                 <span class="text-base md:text-xl font-bold text-gray-900">
