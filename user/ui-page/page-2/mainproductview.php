@@ -303,30 +303,30 @@ if (!function_exists('formatSoldCount')) {
                     </h1>
 
                     <?php if ($totalReviews > 0): ?>
-    <button type="button"
-        onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
-        class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
-        <span class="flex items-center gap-0.5">
-            <?php for ($i = 1; $i <= 5; $i++): ?>
-                <i
-                    class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
-            <?php endfor; ?>
-        </span>
-        <span class="text-xs text-gray-500 font-medium"><?= number_format($avgRating, 1) ?></span>
-        <span class="text-xs text-gray-400">(<?= $totalReviews ?>
-            review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
-        <?php if ($totalSold > 0): ?>
-            <span class="text-gray-300">·</span>
-            <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
-        <?php endif; ?>
-    </button>
-<?php else: ?>
-    <?php if ($totalSold > 0): ?>
-        <div class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
-            <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
-        </div>
-    <?php endif; ?>
-<?php endif; ?>
+                        <button type="button"
+                            onclick="document.getElementById('tab-reviews')?.click(); document.getElementById('panel-reviews')?.scrollIntoView({behavior:'smooth', block:'start'});"
+                            class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
+                            <span class="flex items-center gap-0.5">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <i
+                                        class="fa-star text-xs <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                                <?php endfor; ?>
+                            </span>
+                            <span class="text-xs text-gray-500 font-medium"><?= number_format($avgRating, 1) ?></span>
+                            <span class="text-xs text-gray-400">(<?= $totalReviews ?>
+                                review<?= $totalReviews !== 1 ? 's' : '' ?>)</span>
+                            <?php if ($totalSold > 0): ?>
+                                <span class="text-gray-300">·</span>
+                                <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
+                            <?php endif; ?>
+                        </button>
+                    <?php else: ?>
+                        <?php if ($totalSold > 0): ?>
+                            <div class="flex items-center gap-1.5 mb-2 md:mb-3 w-fit">
+                                <span class="text-xs text-gray-400"><?= formatSoldCount($totalSold) ?> sold</span>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
 
                     <div class="flex items-center gap-2 mb-1.5 md:mb-2">
                         <div id="price-display">
@@ -339,8 +339,8 @@ if (!function_exists('formatSoldCount')) {
                                 <span class="text-xs md:text-sm text-gray-400 italic">Price not set</span>
                             <?php endif; ?>
                         </div>
-                        <span id="promo-timer"
-                            class="hidden inline-flex items-center gap-1 bg-red-50 text-red-500 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                        <span id="promo-timer" style="display:none;"
+                            class="items-center gap-1 bg-red-50 text-red-500 text-[10px] md:text-xs font-semibold px-2 py-0.5 rounded-full border border-red-100">
                             <i class="fa-solid fa-clock"></i> <span id="promo-timer-text">--:--:--</span>
                         </span>
                     </div>
@@ -501,7 +501,6 @@ if (!function_exists('formatSoldCount')) {
         });
 
         // ─── Display-only preview (WALANG select) ──────────────────────────────
-
         function showDefaultPreview() {
             if (!colors.length) return;
 
@@ -522,11 +521,10 @@ if (!function_exists('formatSoldCount')) {
             const stock = getAvailableStock(variant);
             const originalPrice = parseFloat(variant.pricesize);
             const baseDiscount = getEffectiveDiscount(variant.discountvariant, colorId, sizeName);
-            const tierDiscount = resolveTierDiscount(1); // qty 1 pa lang, walang tier discount na tama
+            const tierDiscount = resolveTierDiscount(1);
             const effectiveDiscount = Math.max(baseDiscount, tierDiscount);
             const discounted = effectiveDiscount > 0 ? originalPrice * (1 - effectiveDiscount / 100) : originalPrice;
 
-            // Price display
             const priceEl = document.getElementById('price-display');
             if (priceEl) {
                 let html = `<span class="text-base md:text-xl font-bold text-gray-900">₱${discounted.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>`;
@@ -537,8 +535,6 @@ if (!function_exists('formatSoldCount')) {
                 priceEl.innerHTML = html;
             }
 
-            // Stock info (preview lang, kaya walang "min. order" check pa dahil
-            // walang selected qty/variant talaga)
             const stockEl = document.getElementById('stock-info');
             if (stockEl) {
                 if (stock <= 0) {
@@ -550,8 +546,9 @@ if (!function_exists('formatSoldCount')) {
                 }
             }
 
-            // Promo timer, kung meron
-            updatePromoTimer(colorId, sizeName);
+            // Tanggal na yung updatePromoTimer(colorId, sizeName) dito —
+            // dapat wala pang timer na lalabas hangga't walang actual na
+            // pinipiling color/size ang user.
         }
 
         function patchZoomOnImgChange() {
@@ -585,7 +582,7 @@ if (!function_exists('formatSoldCount')) {
         let productCartQty = <?= json_encode($currentProductCartQty) ?>; // mutable — updated after successful add
         // ───────────────────────────────────────────────────────────────────
 
-      
+
         const variantCartQty = <?= json_encode($variantCartQty) ?>; // variant_id => qty already in cart
 
         function getAvailableStock(variant) {
@@ -594,9 +591,9 @@ if (!function_exists('formatSoldCount')) {
             const inCart = variantCartQty[variant.id] || 0;
             return Math.max(0, raw - inCart);
         }
-     
 
-      
+
+
         let isRefreshingCartQty = false;
 
         async function refreshVariantCartQty() {
@@ -920,8 +917,11 @@ if (!function_exists('formatSoldCount')) {
             selectedColorId = colors[index].id;
             selectedSizeName = null;
             selectedVariantId = null;
+            currentVariantOriginalPrice = 0;           // ← DAGDAG: i-reset ang price state
+            currentVariantBaseDiscountPercent = 0;      // ← DAGDAG
             clearStockInfo();
             hideQtySection();
+            updatePromoTimer(null);                    // ← DAGDAG: itago ang promo timer, walang size pa
             document.getElementById('selected-color-label').textContent = '— ' + colors[index].colorname;
             document.getElementById('selected-size-label').textContent = '';
 
@@ -1013,7 +1013,7 @@ if (!function_exists('formatSoldCount')) {
 
                     renderPriceDisplay();
                     updateFinalPrice();
-                    updatePromoTimer(selectedColorId, selectedSizeName);
+                    updatePromoTimer(selectedColorId, selectedSizeName); // ← nandito lang dapat tumatawag
                 }
 
                 updateStockLabel();
@@ -1207,12 +1207,12 @@ if (!function_exists('formatSoldCount')) {
 
             const promo = (colorId && sizeName) ? findApplicablePromo(colorId, sizeName) : null;
             if (!promo) {
-                el.classList.add('hidden');
+                el.style.display = 'none';
                 return;
             }
 
             const end = new Date(promo.end_date.replace(' ', 'T')).getTime();
-            el.classList.remove('hidden');
+            el.style.display = 'inline-flex';
             el.classList.remove('opacity-50');
 
             function tick() {

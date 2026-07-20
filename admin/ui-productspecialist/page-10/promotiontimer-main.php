@@ -34,6 +34,7 @@ include ROOT_PATH . '/admin/authentication/index-roleguard.php';
                 <thead class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                     <tr>
                         <th class="text-left px-4 py-3">Product</th>
+                        <th class="text-left px-4 py-3">Color / Size</th>
                         <th class="text-left px-4 py-3">Discount</th>
                         <th class="text-left px-4 py-3">Start</th>
                         <th class="text-left px-4 py-3">End</th>

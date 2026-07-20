@@ -1,8 +1,6 @@
 <?php
 // inspiration-main.php
 include ROOT_PATH . '/network/connect.php';
-
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
