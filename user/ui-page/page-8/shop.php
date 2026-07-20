@@ -56,6 +56,8 @@ while ($row = $sizeRes->fetch_assoc()) {
 $priceBounds = $conn->query("SELECT MIN(pricesize) AS lo, MAX(pricesize) AS hi FROM nobleproductvariant")->fetch_assoc();
 $priceLo = floatval($priceBounds['lo'] ?? 0);
 $priceHi = floatval($priceBounds['hi'] ?? 0);
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -285,7 +287,13 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 </div>
                 <div>
                     <h3 id="modalProductName" class="text-sm font-bold text-gray-900"></h3>
-                    <p id="modalProductPrice" class="text-sm font-semibold text-amber-600 mt-1"></p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <p id="modalProductPrice" class="text-sm font-semibold text-amber-600"></p>
+                        <span id="modalPromoTimer" style="display:none;"
+                            class="items-center gap-1 bg-red-50 text-red-500 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-red-100">
+                            <i class="fa-solid fa-clock"></i> <span id="modalPromoTimerText">--:--:--</span>
+                        </span>
+                    </div>
                 </div>
             </div>
             <div class="mb-4">
@@ -343,6 +351,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         // ── Config ────────────────────────────────────────────────────────────────────
         const ADD_TO_CART_URL = <?= json_encode(BASE_URL . '/cartadd') ?>;
         const PRODUCTS_URL = <?= json_encode(BASE_URL . '/shop-products') ?>;   // AJAX endpoint
+        const SAVE_PRODUCT_URL = <?= json_encode(BASE_URL . '/savedproduct') ?>;
         const LOW_STOCK_THRESHOLD = 5;
         let promoInterval = null;
 
@@ -551,9 +560,10 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
 
 
         // ═════════════════════════════════════════════════════════════════════════════
-        // ADD TO CART MODAL (unchanged logic, same as before)
+        // ADD TO CART MODAL
         // ═════════════════════════════════════════════════════════════════════════════
         let currentModalState = { productId: null, colorId: null, variantId: null };
+        let modalPromoTimerInterval = null;
 
         function openAddToCart(productId) {
             const product = PRODUCT_DATA[productId];
@@ -573,6 +583,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 '<span class="text-xs text-gray-400">Select a color first</span>';
             document.getElementById('modalQtyInput').value = 1;
             document.getElementById('modalAddBtn').disabled = true;
+            hideModalPromoTimer();
 
             renderColorOptions(product.colors);
 
@@ -585,6 +596,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             const modal = document.getElementById('addToCartModal');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
+            hideModalPromoTimer();
         }
 
         function closeModalBackdrop(e) {
@@ -628,6 +640,7 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             document.getElementById('modalProductPrice').textContent = '';
             document.getElementById('modalStockLabel').textContent = '';
             document.getElementById('modalAddBtn').disabled = true;
+            hideModalPromoTimer(); // walang size pa — itago muna ang timer
 
             if (!color || color.variants.length === 0) {
                 sizeWrap.innerHTML = '<span class="text-xs text-gray-400">No sizes available</span>';
@@ -670,6 +683,16 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 ? `₱${formatPrice(finalPrice)} <span class="text-xs text-gray-400 line-through ml-1">₱${formatPrice(variant.price)}</span> <span class="text-xs text-red-400 font-semibold ml-1">-${variant.discount}%</span>`
                 : `₱${formatPrice(finalPrice)}`;
 
+            // ─── Promo countdown — para sa EKSAKTONG napiling variant lang ───
+            // Ito ang parehong resolution na ginagamit ng product page: kung
+            // may date-based na promo talaga ang specific na color+size na
+            // 'to (variant.promo_end), doon lang lalabas ang countdown.
+            if (variant.discount > 0 && variant.promo_end) {
+                showModalPromoTimer(variant.promo_end);
+            } else {
+                hideModalPromoTimer();
+            }
+
             const qtyInput = document.getElementById('modalQtyInput');
             qtyInput.max = variant.stock > 0 ? variant.stock : 1;
             qtyInput.value = 1;
@@ -684,6 +707,45 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             }
             document.getElementById('modalAddBtn').disabled = variant.stock <= 0;
         }
+
+        // ─── Modal promo countdown helpers ─────────────────────────────────────
+        function showModalPromoTimer(endDateStr) {
+            const el = document.getElementById('modalPromoTimer');
+            const textEl = document.getElementById('modalPromoTimerText');
+            if (!el || !textEl) return;
+
+            if (modalPromoTimerInterval) { clearInterval(modalPromoTimerInterval); modalPromoTimerInterval = null; }
+
+            const end = new Date(endDateStr.replace(' ', 'T')).getTime();
+            el.style.display = 'inline-flex';
+            el.classList.remove('opacity-50');
+
+            function tick() {
+                const diff = end - Date.now();
+                if (diff <= 0) {
+                    el.classList.add('opacity-50');
+                    textEl.textContent = 'Promo ended';
+                    clearInterval(modalPromoTimerInterval);
+                    return;
+                }
+                const d = Math.floor(diff / 86400000);
+                const h = Math.floor((diff % 86400000) / 3600000);
+                const m = Math.floor((diff % 3600000) / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                textEl.textContent = d > 0
+                    ? `${d}d ${h}h left`
+                    : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+            }
+            tick();
+            modalPromoTimerInterval = setInterval(tick, 1000);
+        }
+
+        function hideModalPromoTimer() {
+            if (modalPromoTimerInterval) { clearInterval(modalPromoTimerInterval); modalPromoTimerInterval = null; }
+            const el = document.getElementById('modalPromoTimer');
+            if (el) el.style.display = 'none';
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         function modalChangeQty(delta) {
             const input = document.getElementById('modalQtyInput');
@@ -739,6 +801,38 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                 toast.classList.remove('opacity-100', 'translate-y-0');
             }, 3000);
         }
+
+        // ── Save / Unsave (bookmark) — event delegation kasi AJAX-loaded ang cards ────
+document.getElementById('products-area').addEventListener('click', function (e) {
+    const btn = e.target.closest('.save-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const icon = btn.querySelector('i');
+    const productId = btn.dataset.productId;
+
+    fetch(SAVE_PRODUCT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'product_id=' + encodeURIComponent(productId)
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                showToast('error', data.message || 'May error, subukan ulit.');
+                return;
+            }
+            if (data.saved) {
+                icon.classList.remove('fa-regular', 'text-gray-500');
+                icon.classList.add('fa-solid', 'text-red-500');
+            } else {
+                icon.classList.remove('fa-solid', 'text-red-500');
+                icon.classList.add('fa-regular', 'text-gray-500');
+            }
+        })
+        .catch(() => showToast('error', 'May error, subukan ulit.'));
+});
     </script>
 
 </body>

@@ -31,6 +31,23 @@ function formatSoldCount($n) {
     return number_format($n);
 }
 
+
+$savedIds = [];
+if (isset($_SESSION['user_id'])) {
+    $uid = (int) $_SESSION['user_id'];
+    $savedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = $uid");
+    if ($savedResult) {
+        while ($row = $savedResult->fetch_assoc()) {
+            $savedIds[] = (int) $row['product_id'];
+        }
+    } else {
+        error_log('Saved query FAILED: ' . $conn->error); // ← check kung may SQL error
+    }
+} else {
+    error_log('user_id NOT in session'); // ← check kung naka-login ka talaga
+}
+
+
 // ── Build WHERE clause ───────────────────────────────────────────────────────
 $where  = [];
 $params = [];
@@ -103,30 +120,20 @@ while ($row = $promoRes->fetch_assoc()) {
     ];
 }
 
-// Resolve best applicable promo para sa isang specific variant (color+size)
-function resolveCardPromoDiscount(array $activePromos, $productId, $colorId, $sizeName) {
-    $best = 0;
+// Resolve best applicable promo para sa isang specific variant (color+size).
+// Ibinabalik ang buong promo array (may discount_percent at end_date) o null
+// kung walang applicable na promo — kailangan ang end_date para magamit sa
+// Add-to-Cart modal timer (shop.php), hindi lang sa card badge.
+function resolveCardPromo(array $activePromos, $productId, $colorId, $sizeName) {
+    $best = null;
     foreach ($activePromos[$productId] ?? [] as $promo) {
         $colorMatches = $promo['color_id'] === null || $promo['color_id'] === intval($colorId);
         $sizeMatches  = $promo['sizename'] === null || $promo['sizename'] === $sizeName;
-        if ($colorMatches && $sizeMatches && $promo['discount_percent'] > $best) {
-            $best = $promo['discount_percent'];
+        if ($colorMatches && $sizeMatches && (!$best || $promo['discount_percent'] > $best['discount_percent'])) {
+            $best = $promo;
         }
     }
     return $best;
-}
-
-// Kunin ang PINAKAMALAPIT na mag-expire na promo (kahit anong color/size) para sa
-// timer badge sa card — mahalaga lang ito bilang visual hint, tama pa rin ang
-// exact discount kapag pumasok sa product page.
-function getSoonestPromoEndDate(array $activePromos, $productId) {
-    $soonest = null;
-    foreach ($activePromos[$productId] ?? [] as $promo) {
-        if ($soonest === null || strtotime($promo['end_date']) < strtotime($soonest)) {
-            $soonest = $promo['end_date'];
-        }
-    }
-    return $soonest;
 }
 
 
@@ -165,21 +172,31 @@ if (!empty($productIds)) {
     $idPh    = implode(',', array_fill(0, count($productIds), '?'));
     $idTypes = str_repeat('i', count($productIds));
 
+    // NOTE: naka-order by c.id ASC, v.pricesize ASC — kaparehong-kapareho ng
+    // pagkaka-order sa mainproductview.php, para tugma ang "default variant"
+    // na napipili sa card at sa product page.
     $detailStmt = $conn->prepare("
         SELECT c.id AS color_id, c.product_id, c.colorname, c.imagecolor,
                v.id AS variant_id, v.sizename, v.pricesize, v.discountvariant, v.stock
         FROM nobleproductcolor c
         INNER JOIN nobleproductvariant v ON v.color_id = c.id
         WHERE c.product_id IN ($idPh)
-        ORDER BY c.colorname ASC, v.sizename ASC");
+        ORDER BY c.id ASC, v.pricesize ASC");
     $detailStmt->bind_param($idTypes, ...$productIds);
     $detailStmt->execute();
 
     foreach ($detailStmt->get_result()->fetch_all(MYSQLI_ASSOC) as $row) {
         $pid = $row['product_id'];
         $cid = $row['color_id'];
-        $promoDiscount = resolveCardPromoDiscount($activePromos, $pid, $cid, $row['sizename']);
+        $matchedPromo = resolveCardPromo($activePromos, $pid, $cid, $row['sizename']);
+        $promoDiscount = $matchedPromo ? $matchedPromo['discount_percent'] : 0;
         $effectiveDiscount = max(floatval($row['discountvariant']), $promoDiscount);
+        // Timer end_date lang ipapakita kung ang PROMO (may petsa) mismo ang
+        // may pinakamataas na discount — kung galing lang sa variant['s own
+        // discountvariant] (walang petsa/hindi date-based), walang dapat timer.
+        $promoEnd = ($matchedPromo && $promoDiscount >= floatval($row['discountvariant']))
+            ? $matchedPromo['end_date']
+            : null;
         if (!isset($productColorData[$pid][$cid])) {
             $productColorData[$pid][$cid] = [
                 'id'        => $cid,
@@ -189,11 +206,12 @@ if (!empty($productIds)) {
             ];
         }
           $productColorData[$pid][$cid]['variants'][] = [
-            'id'       => $row['variant_id'],
-            'sizename' => $row['sizename'],
-            'price'    => floatval($row['pricesize']),
-            'discount' => $effectiveDiscount,
-            'stock'    => intval($row['stock']),
+            'id'         => $row['variant_id'],
+            'sizename'   => $row['sizename'],
+            'price'      => floatval($row['pricesize']),
+            'discount'   => $effectiveDiscount,
+            'stock'      => intval($row['stock']),
+            'promo_end'  => $promoEnd, // null kung walang timer/promo — 'yung modal ang bahalang magpakita
         ];
     }
     $detailStmt->close();
@@ -247,11 +265,11 @@ ob_start();
             $cardTotalStock += $v['stock'];
             if ($v['discount'] > 0) $hasSale = true;
         }
-      $promoSoonestEndDate = getSoonestPromoEndDate($activePromos, $p['id']);
+
     ?>
-    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
-       class="bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
-              block hover:shadow-lg transition-shadow duration-300">
+<a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
+   class="group bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
+          block hover:shadow-lg transition-shadow duration-300">
 
         <div class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4 relative">
             <?php if ($hasSale): ?>
@@ -259,14 +277,17 @@ ob_start();
                              text-[8px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-full shadow">
                     SALE
                 </span>
-                <?php if ($promoSoonestEndDate): ?>
-                    <span class="promo-timer absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10 bg-gray-900/80 text-white
-                                 text-[8px] md:text-[9px] font-semibold px-1.5 md:px-2 py-0.5 rounded-full shadow"
-                          data-end="<?= date('c', strtotime($promoSoonestEndDate)) ?>">
-                        --:--:--
-                    </span>
-                <?php endif; ?>
             <?php endif; ?>
+
+            <button type="button"
+            class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-20
+                   w-6 h-6 md:w-7 md:h-7 rounded-full bg-white/90 shadow
+                   flex items-center justify-center"
+            data-product-id="<?= $p['id'] ?>"
+            aria-label="Save to favorites">
+            <i class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-[10px] md:text-xs"></i>
+        </button>
+
             <?php if (!empty($p['imageproduct'])): ?>
                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
                      alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain">

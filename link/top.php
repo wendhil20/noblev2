@@ -24,4 +24,19 @@ define('QR_SECRET', 'warehouse_secret_2024');
      * {
     font-family: 'Plus Jakarta Sans', sans-serif;
   }
+
+  /* Save/bookmark button: laging visible sa mobile, hover-only sa desktop */
+  .save-btn {
+      opacity: 1;
+  }
+
+  @media (min-width: 768px) {
+      .save-btn {
+          opacity: 0;
+          transition: opacity 0.2s ease;
+      }
+      .group:hover .save-btn {
+          opacity: 1;
+      }
+  }
 </style>

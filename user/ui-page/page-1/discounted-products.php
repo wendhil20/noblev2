@@ -48,6 +48,21 @@ $discResult = $conn->query("
 ");
 while ($row = $discResult->fetch_assoc())
     $discountedProducts[] = $row;
+
+// Kunin yung mga naka-save na product ng current user (para alam kung alin bookmark ang naka-red)
+$discSavedIds = [];
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (isset($_SESSION['user_id'])) {
+    $uid = (int) $_SESSION['user_id'];
+    $discSavedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = $uid");
+    if ($discSavedResult) {
+        while ($row = $discSavedResult->fetch_assoc()) {
+            $discSavedIds[] = (int) $row['product_id'];
+        }
+    }
+}
 ?>
 
 <?php if (!empty($discountedProducts)): ?>
@@ -87,7 +102,7 @@ while ($row = $discResult->fetch_assoc())
             <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
                 id="discountTrack">
                 <?php foreach ($discountedProducts as $p): ?>
-                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
+                    <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="group rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative
                       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
@@ -98,7 +113,7 @@ while ($row = $discResult->fetch_assoc())
                         </span>
 
                         <!-- Image -->
-                        <div class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
+                        <div class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
                             <?php if (!empty($p['imageproduct'])): ?>
                                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
                                     alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain" loading="lazy">
@@ -107,6 +122,16 @@ while ($row = $discResult->fetch_assoc())
                                     <i class="fa-solid fa-image text-3xl md:text-5xl"></i>
                                 </div>
                             <?php endif; ?>
+
+                            <!-- Save / Bookmark button -->
+                            <button type="button"
+                                class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
+                                       w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/90 shadow
+                                       flex items-center justify-center"
+                                data-product-id="<?= $p['id'] ?>"
+                                aria-label="Save to favorites">
+                                <i class="<?= in_array($p['id'], $discSavedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-xs md:text-sm"></i>
+                            </button>
                         </div>
 
                         <!-- Info -->
@@ -205,5 +230,37 @@ while ($row = $discResult->fetch_assoc())
 
             go(0); // initial check sa arrows pagka-load
         })();
+
+        // Save / Unsave (bookmark) functionality — scoped lang sa #discountTrack
+        document.querySelectorAll('#discountTrack .save-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const icon = this.querySelector('i');
+                const productId = this.dataset.productId;
+
+                fetch('<?= BASE_URL ?>/savedproduct', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'product_id=' + encodeURIComponent(productId)
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'May error, subukan ulit.');
+                        return;
+                    }
+                    if (data.saved) {
+                        icon.classList.remove('fa-regular', 'text-gray-500');
+                        icon.classList.add('fa-solid', 'text-red-500');
+                    } else {
+                        icon.classList.remove('fa-solid', 'text-red-500');
+                        icon.classList.add('fa-regular', 'text-gray-500');
+                    }
+                })
+                .catch(() => alert('May error, subukan ulit.'));
+            });
+        });
     </script>
 <?php endif; ?>

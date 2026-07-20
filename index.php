@@ -256,6 +256,9 @@ $routes = [
     //page 10
     'inspiration'                             => 'user/ui-page/page-10/inspiration-main.php',
 
+    //page 11
+    'saved'                                   => 'user/ui-page/page-11/saved-main.php',
+    'savedproduct'                            => 'user/ui-page/backend/backend-page-11/saved.php',
 
     //admin
     'loginadmin'                           => 'admin/authentication/index-login.php',

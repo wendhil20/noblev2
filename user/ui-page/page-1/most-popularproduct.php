@@ -33,6 +33,21 @@ $result = $conn->query("
 while ($row = $result->fetch_assoc())
     $products[] = $row;
 
+// Kunin yung mga naka-save na product ng current user (para alam kung alin bookmark ang naka-red)
+$savedIds = [];
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+if (isset($_SESSION['user_id'])) {
+    $uid = (int) $_SESSION['user_id'];
+    $savedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = $uid");
+    if ($savedResult) {
+        while ($row = $savedResult->fetch_assoc()) {
+            $savedIds[] = (int) $row['product_id'];
+        }
+    }
+}
+
 // Helper to format sold count (e.g. 1,200 -> "1.2K")
 function formatSoldCount($n)
 {
@@ -63,7 +78,6 @@ function formatSoldCount($n)
 
     <div class="relative">
 
-
         <!-- Left arrow -->
         <button id="productPrev" onclick="productSlide(-1)" aria-label="Previous product" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
        w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
@@ -73,7 +87,6 @@ function formatSoldCount($n)
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </button>
-
 
         <!-- Right arrow -->
         <button id="productNext" onclick="productSlide(1)" aria-label="Next product" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
@@ -91,12 +104,12 @@ function formatSoldCount($n)
                 id="productTrack">
                 <?php foreach ($products as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
-                        aria-label="View details for <?= htmlspecialchars($p['name']) ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
+                        aria-label="View details for <?= htmlspecialchars($p['name']) ?>" class="group relative rounded-xl md:rounded-2xl overflow-hidden 
       block hover:shadow-lg transition-shadow duration-300 shrink-0
       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
                         <!-- Image -->
-                        <div class="aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
+                        <div class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
                             <?php if (!empty($p['imageproduct'])): ?>
                                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
                                     alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain">
@@ -105,6 +118,21 @@ function formatSoldCount($n)
                                     <i class="fa-solid fa-image text-3xl md:text-5xl"></i>
                                 </div>
                             <?php endif; ?>
+
+                            <!--
+                                Save / Bookmark button
+                                - Mobile (< md): laging visible -> opacity-100 (default)
+                                - Desktop (md+): hidden by default -> md:opacity-0
+                                              lalabas pag hover sa card -> md:group-hover:opacity-100
+                            -->
+                            <button type="button"
+                                class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
+                                       w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/90 shadow
+                                       flex items-center justify-center"
+                                data-product-id="<?= $p['id'] ?>"
+                                aria-label="Save to favorites">
+                                <i class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-xs md:text-sm"></i>
+                            </button>
                         </div>
 
                         <!-- Info -->
@@ -185,9 +213,7 @@ function formatSoldCount($n)
         }
 
         function updateArrows(max) {
-            // Itago kapag nasa unang slide na (wala nang dulo sa kaliwa)
             prevBtn.style.display = current <= 0 ? 'none' : 'flex';
-            // Itago kapag nasa huling slide na (wala nang dulo sa kanan)
             nextBtn.style.display = current >= max ? 'none' : 'flex';
         }
 
@@ -213,6 +239,38 @@ function formatSoldCount($n)
 
         window.addEventListener('resize', () => go(current));
 
-        go(0); // initial check sa arrows pagka-load
+        go(0);
     })();
+
+    // Save / Unsave (bookmark) functionality
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const icon = this.querySelector('i');
+            const productId = this.dataset.productId;
+
+            fetch('<?= BASE_URL ?>/savedproduct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'product_id=' + encodeURIComponent(productId)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.message || 'May error, subukan ulit.');
+                    return;
+                }
+                if (data.saved) {
+                    icon.classList.remove('fa-regular', 'text-gray-500');
+                    icon.classList.add('fa-solid', 'text-red-500');
+                } else {
+                    icon.classList.remove('fa-solid', 'text-red-500');
+                    icon.classList.add('fa-regular', 'text-gray-500');
+                }
+            })
+            .catch(() => alert('May error, subukan ulit.'));
+        });
+    });
 </script>
