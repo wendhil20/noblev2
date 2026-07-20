@@ -198,6 +198,16 @@ if (!function_exists('formatSoldCount')) {
         return number_format($n);
     }
 }
+
+$savedIds = [];
+if ($isLoggedIn) {
+    $savedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = " . intval($_SESSION['user_id']));
+    if ($savedResult) {
+        while ($row = $savedResult->fetch_assoc()) {
+            $savedIds[] = (int) $row['product_id'];
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -287,12 +297,29 @@ if (!function_exists('formatSoldCount')) {
 
                 <!-- Details -->
                 <div class="p-5 md:p-8 flex flex-col">
-                    <?php if (!empty($product['category'])): ?>
-                        <span
-                            class="text-[10px] md:text-xs font-semibold text-amber-500 uppercase tracking-widest mb-1.5 md:mb-2">
-                            <?= htmlspecialchars($product['category']) ?>
-                        </span>
-                    <?php endif; ?>
+                    <div class="flex items-start justify-between mb-1.5 md:mb-2">
+                        <?php if (!empty($product['category'])): ?>
+                            <span class="text-[10px] md:text-xs font-semibold text-amber-500 uppercase tracking-widest">
+                                <?= htmlspecialchars($product['category']) ?>
+                            </span>
+                        <?php endif; ?>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="save-btn" class="w-12 h-12 md:w-9 md:h-9 rounded-full bg-white
+               flex items-center justify-center transition duration-200
+               hover:bg-gray-50 active:scale-90" data-product-id="<?= $productId ?>" aria-label="Save to favorites">
+                                <i
+                                    class="<?= in_array($productId, $savedIds ?? []) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-lg md:text-base transition-transform"></i>
+                            </button>
+
+                            <button type="button" id="share-btn" class="w-12 h-12 md:w-9 md:h-9 rounded-full bg-white
+               flex items-center justify-center transition duration-200
+               hover:bg-gray-50 active:scale-90" data-product-id="<?= $productId ?>"
+                                data-product-name="<?= htmlspecialchars($product['name'], ENT_QUOTES) ?>"
+                                aria-label="Share product">
+                                <i class="fa-regular fa-share-from-square text-gray-500 text-lg md:text-base"></i>
+                            </button>
+                        </div>
+                    </div>
 
                     <h1 class="text-lg md:text-2xl font-bold text-gray-900 mb-2 md:mb-3">
                         <?= htmlspecialchars($product['name']) ?>
@@ -419,13 +446,20 @@ if (!function_exists('formatSoldCount')) {
                         </div>
                     <?php endif; ?>
 
-                    <!-- Add to Cart -->
+                    <!-- Add to Cart + Checkout -->
                     <?php if ($isLoggedIn): ?>
-                        <button type="button" id="add-to-cart-btn" onclick="addToCart()" disabled
-                            class="mt-auto w-full py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold transition bg-gray-100 text-gray-400 cursor-not-allowed"
-                            data-product-id="<?= $productId ?>">
-                            <i class="fa-solid fa-cart-plus mr-2"></i> Select color and size
-                        </button>
+                        <div class="mt-auto flex gap-2">
+                            <button type="button" id="add-to-cart-btn" onclick="addToCart()" disabled
+                                class="flex-1 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold transition bg-gray-100 text-gray-400 cursor-not-allowed"
+                                data-product-id="<?= $productId ?>">
+                                <i class="fa-solid fa-cart-plus mr-2"></i> Select color and size
+                            </button>
+                            <button type="button" id="checkout-now-btn" onclick="buyNow()" disabled
+                                style="background-color:#e5e7eb; border-color:#e5e7eb;"
+                                class="flex-1 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold transition text-gray-400 cursor-not-allowed border-2">
+                                <i class="fa-solid fa-bag-shopping mr-2"></i> Checkout
+                            </button>
+                        </div>
                     <?php else: ?>
                         <a href="<?= BASE_URL ?>/google"
                             class="mt-auto w-full py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold text-center transition bg-amber-500 hover:bg-amber-600 text-white block">
@@ -1034,9 +1068,10 @@ if (!function_exists('formatSoldCount')) {
 
         function updateCartBtn() {
             const btn = document.getElementById('add-to-cart-btn');
+            const checkoutBtn = document.getElementById('checkout-now-btn');
             if (!btn) return;
 
-            const base = 'mt-auto w-full py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold transition';
+            const base = 'flex-1 py-2.5 md:py-3 rounded-xl text-xs md:text-sm font-semibold transition';
 
             if (selectedColorId && selectedSizeName && selectedVariantId) {
                 if (selectedVariantStock <= 0) {
@@ -1074,6 +1109,25 @@ if (!function_exists('formatSoldCount')) {
                 btn.disabled = true;
                 btn.className = `${base} bg-gray-100 text-gray-400 cursor-not-allowed`;
                 btn.innerHTML = '<i class="fa-solid fa-cart-plus mr-2"></i> Select a size';
+            }
+
+            if (checkoutBtn) {
+                if (!btn.disabled) {
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.className = `${base} text-white cursor-pointer shadow-sm`;
+                    checkoutBtn.style.backgroundColor = '#111827'; // dark navy/black
+                    checkoutBtn.onmouseenter = () => checkoutBtn.style.backgroundColor = '#000000';
+                    checkoutBtn.onmouseleave = () => checkoutBtn.style.backgroundColor = '#111827';
+                    checkoutBtn.innerHTML = '<i class="fa-solid fa-bag-shopping mr-2"></i> Checkout';
+                } else {
+                    checkoutBtn.disabled = true;
+                    checkoutBtn.className = `${base} text-gray-400 cursor-not-allowed border-2`;
+                    checkoutBtn.style.backgroundColor = '#e5e7eb'; // light gray
+                    checkoutBtn.style.borderColor = '#e5e7eb';
+                    checkoutBtn.onmouseenter = null;
+                    checkoutBtn.onmouseleave = null;
+                    checkoutBtn.innerHTML = '<i class="fa-solid fa-bag-shopping mr-2"></i> Checkout';
+                }
             }
         }
 
@@ -1167,6 +1221,54 @@ if (!function_exists('formatSoldCount')) {
             updateCartBtn();
         }
 
+        async function buyNow() {
+            const btn = document.getElementById('checkout-now-btn');
+            if (!btn || btn.disabled) return;
+
+            if (selectedVariantStock <= 0) {
+                showToast(selectedVariantRawStock <= 0 ? 'error' : 'warning',
+                    selectedVariantRawStock <= 0 ? 'This item is out of stock.' : 'You already have all available stock of this in your cart.');
+                return;
+            }
+            if (isLimitReached()) {
+                showToast('warning', `Only ${productQtyLimit} pcs can be purchased per order for this product.`);
+                return;
+            }
+
+            const qty = selectedQty || 1;
+            if (productQtyMin > 1 && qty < productQtyMin) {
+                showToast('warning', `You need ${productQtyMin} pcs or more per add-to-cart for this product.`);
+                return;
+            }
+
+            const addBtn = document.getElementById('add-to-cart-btn');
+            btn.disabled = true;
+            addBtn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Processing…';
+
+            try {
+                const fd = new FormData();
+                fd.append('product_id', productId);
+                fd.append('color_id', selectedColorId);
+                fd.append('variant_id', selectedVariantId);
+                fd.append('qty', qty);
+
+                const res = await fetch(addCartUrl, { method: 'POST', body: fd });
+                const data = await res.json();
+
+                if (data.ok) {
+                    window.dispatchEvent(new CustomEvent('noblecart:changed'));
+                    window.location.href = <?= json_encode(BASE_URL . '/checkout') ?>;
+                } else {
+                    showToast('error', data.msg || 'Failed to proceed to checkout.');
+                    updateCartBtn();
+                }
+            } catch (e) {
+                showToast('error', 'Something went wrong.');
+                updateCartBtn();
+            }
+        }
+
         function showToast(type, msg) {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
@@ -1195,6 +1297,42 @@ if (!function_exists('formatSoldCount')) {
                 window.location.href = <?= json_encode(BASE_URL . '/') ?>;
             }
         }
+
+        document.getElementById('save-btn')?.addEventListener('click', function () {
+            const icon = this.querySelector('i');
+            fetch('<?= BASE_URL ?>/savedproduct', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'product_id=' + encodeURIComponent(productId)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) { showToast('error', data.message || 'Something went wrong.'); return; }
+                    if (data.saved) {
+                        icon.classList.remove('fa-regular', 'text-gray-500');
+                        icon.classList.add('fa-solid', 'text-red-500');
+                        showToast('success', 'Saved to favorites!');
+                    } else {
+                        icon.classList.remove('fa-solid', 'text-red-500');
+                        icon.classList.add('fa-regular', 'text-gray-500');
+                        showToast('success', 'Removed from favorites.');
+                    }
+                })
+                .catch(() => showToast('error', 'Something went wrong.'));
+        });
+
+        document.getElementById('share-btn')?.addEventListener('click', function () {
+            const productName = this.dataset.productName;
+            const shareUrl = window.location.href;
+
+            if (navigator.share) {
+                navigator.share({ title: productName, url: shareUrl }).catch(() => { });
+            } else {
+                navigator.clipboard.writeText(shareUrl)
+                    .then(() => showToast('success', 'Link copied to clipboard!'))
+                    .catch(() => showToast('error', 'Could not copy link.'));
+            }
+        });
 
         let promoTimerInterval = null;
 
