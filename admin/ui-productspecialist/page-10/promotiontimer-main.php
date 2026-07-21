@@ -113,170 +113,213 @@ include ROOT_PATH . '/admin/authentication/index-roleguard.php';
         </div>
     </div>
 
-    <script>
-        const LIST_URL   = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-list') ?>;
-        const SAVE_URL   = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-save') ?>;
-        const DELETE_URL = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-delete') ?>;
-        let sizesByProduct = {};
-        let colorsByProduct = {};
+   <script>
+    const LIST_URL   = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-list') ?>;
+    const SAVE_URL   = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-save') ?>;
+    const DELETE_URL = <?= json_encode(BASE_URL . '/ps-backend-promotiontimer-delete') ?>;
+    let sizesByProduct = {};
+    let colorsByProduct = {};
+    let currentPromos = [];
+    let pollTimer = null;
+    let tickTimer = null;
 
-        async function loadPromoTable() {
-            const res = await fetch(LIST_URL);
-            const data = await res.json();
+    async function loadPromoTable() {
+        const res = await fetch(LIST_URL);
+        const data = await res.json();
 
-            sizesByProduct = data.sizes_by_product || {};
-            colorsByProduct = data.colors_by_product || {};
+        sizesByProduct = data.sizes_by_product || {};
+        colorsByProduct = data.colors_by_product || {};
 
-            const select = document.getElementById('promoProductId');
-            if (select.options.length <= 1) {
-                data.products.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.id;
-                    opt.textContent = p.name;
-                    select.appendChild(opt);
-                });
-            }
-
-            const body = document.getElementById('promoTableBody');
-            if (data.promos.length === 0) {
-                body.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400">No promos yet.</td></tr>`;
-                return;
-            }
-
-            body.innerHTML = data.promos.map(p => {
-                const statusColor = { active: 'text-green-600', upcoming: 'text-amber-600', expired: 'text-gray-400' }[p.status];
-                const scope = [p.colorname || 'All colors', p.sizename || 'All sizes'].join(' / ');
-                return `
-                <tr class="border-t border-gray-100">
-                    <td class="px-4 py-3 font-medium text-gray-800">${p.product_name}</td>
-                    <td class="px-4 py-3 text-gray-500">${scope}</td>
-                    <td class="px-4 py-3">${p.discount_percent}%</td>
-                    <td class="px-4 py-3 text-gray-500">${p.start_date}</td>
-                    <td class="px-4 py-3 text-gray-500">${p.end_date}</td>
-                    <td class="px-4 py-3 font-semibold ${statusColor}">${p.status}</td>
-                    <td class="px-4 py-3 text-right">
-                        <button onclick='editPromo(${JSON.stringify(p)})' class="text-amber-500 hover:text-amber-600 mr-3"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deletePromo(${p.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-
-        function populateSizeOptions(productId, preselectSize = '') {
-            const sizeSelect = document.getElementById('promoSize');
-            sizeSelect.innerHTML = '<option value="">All sizes</option>';
-            const sizes = sizesByProduct[productId] || [];
-            sizes.forEach(sz => {
+        const select = document.getElementById('promoProductId');
+        if (select.options.length <= 1) {
+            data.products.forEach(p => {
                 const opt = document.createElement('option');
-                opt.value = sz;
-                opt.textContent = sz;
-                if (sz === preselectSize) opt.selected = true;
-                sizeSelect.appendChild(opt);
+                opt.value = p.id;
+                opt.textContent = p.name;
+                select.appendChild(opt);
             });
         }
 
-        function populateColorOptions(productId, preselectColorId = '') {
-            const colorSelect = document.getElementById('promoColorId');
-            colorSelect.innerHTML = '<option value="">All colors</option>';
-            const colors = colorsByProduct[productId] || [];
-            colors.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.colorname;
-                if (String(c.id) === String(preselectColorId)) opt.selected = true;
-                colorSelect.appendChild(opt);
-            });
+        currentPromos = data.promos;
+        renderPromoTable();
+    }
+
+    function computeStatus(startRaw, endRaw) {
+        const now = new Date();
+        const start = new Date(startRaw);
+        const end = new Date(endRaw);
+        if (now < start) return 'upcoming';
+        if (now > end) return 'expired';
+        return 'active';
+    }
+
+    function formatCountdown(ms) {
+        if (ms <= 0) return '';
+        const totalSec = Math.floor(ms / 1000);
+        const d = Math.floor(totalSec / 86400);
+        const h = Math.floor((totalSec % 86400) / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (d > 0) return `${d}d ${h}h ${m}m`;
+        if (h > 0) return `${h}h ${m}m ${s}s`;
+        if (m > 0) return `${m}m ${s}s`;
+        return `${s}s`;
+    }
+
+    function renderPromoTable() {
+        const body = document.getElementById('promoTableBody');
+        if (currentPromos.length === 0) {
+            body.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">No promos yet.</td></tr>`;
+            return;
         }
 
-        document.getElementById('promoProductId').addEventListener('change', (e) => {
-            populateSizeOptions(e.target.value);
-            populateColorOptions(e.target.value);
+        const now = new Date();
+
+        body.innerHTML = currentPromos.map(p => {
+            const status = computeStatus(p.start_date_raw, p.end_date_raw);
+            const statusColor = { active: 'text-green-600', upcoming: 'text-amber-600', expired: 'text-gray-400' }[status];
+            const scope = [p.colorname || 'All colors', p.sizename || 'All sizes'].join(' / ');
+
+            let countdown = '';
+            if (status === 'upcoming') {
+                countdown = `<div class="text-[10px] text-amber-500 mt-0.5">starts in ${formatCountdown(new Date(p.start_date_raw) - now)}</div>`;
+            } else if (status === 'active') {
+                countdown = `<div class="text-[10px] text-green-500 mt-0.5">ends in ${formatCountdown(new Date(p.end_date_raw) - now)}</div>`;
+            }
+
+            return `
+            <tr class="border-t border-gray-100" data-id="${p.id}">
+                <td class="px-4 py-3 font-medium text-gray-800">${p.product_name}</td>
+                <td class="px-4 py-3 text-gray-500">${scope}</td>
+                <td class="px-4 py-3">${p.discount_percent}%</td>
+                <td class="px-4 py-3 text-gray-500">${p.start_date}</td>
+                <td class="px-4 py-3 text-gray-500">${p.end_date}</td>
+                <td class="px-4 py-3 font-semibold ${statusColor}">${status}${countdown}</td>
+                <td class="px-4 py-3 text-right">
+                    <button onclick='editPromo(${JSON.stringify(p)})' class="text-amber-500 hover:text-amber-600 mr-3"><i class="fa-solid fa-pen"></i></button>
+                    <button onclick="deletePromo(${p.id})" class="text-red-400 hover:text-red-600"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function populateSizeOptions(productId, preselectSize = '') {
+        const sizeSelect = document.getElementById('promoSize');
+        sizeSelect.innerHTML = '<option value="">All sizes</option>';
+        const sizes = sizesByProduct[productId] || [];
+        sizes.forEach(sz => {
+            const opt = document.createElement('option');
+            opt.value = sz;
+            opt.textContent = sz;
+            if (sz === preselectSize) opt.selected = true;
+            sizeSelect.appendChild(opt);
         });
+    }
 
-        function openPromoModal() {
-            document.getElementById('promoModal').classList.remove('hidden');
-            document.getElementById('promoModal').classList.add('flex');
-        }
-        function closePromoModal() {
-            document.getElementById('promoModal').classList.add('hidden');
-            document.getElementById('promoModal').classList.remove('flex');
-            document.getElementById('promoError').classList.add('hidden');
-        }
-
-        document.getElementById('addPromoBtn').addEventListener('click', () => {
-            document.getElementById('promoModalTitle').textContent = 'Add Promo';
-            document.getElementById('promoId').value = '';
-            document.getElementById('promoProductId').value = '';
-            document.getElementById('promoDiscount').value = '';
-            document.getElementById('promoStart').value = '';
-            document.getElementById('promoEnd').value = '';
-            document.getElementById('promoSize').innerHTML = '<option value="">All sizes</option>';
-            document.getElementById('promoColorId').innerHTML = '<option value="">All colors</option>';
-            openPromoModal();
+    function populateColorOptions(productId, preselectColorId = '') {
+        const colorSelect = document.getElementById('promoColorId');
+        colorSelect.innerHTML = '<option value="">All colors</option>';
+        const colors = colorsByProduct[productId] || [];
+        colors.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.colorname;
+            if (String(c.id) === String(preselectColorId)) opt.selected = true;
+            colorSelect.appendChild(opt);
         });
+    }
 
-        function editPromo(p) {
-            document.getElementById('promoModalTitle').textContent = 'Edit Promo';
-            document.getElementById('promoId').value = p.id;
-            document.getElementById('promoProductId').value = p.product_id;
-            document.getElementById('promoDiscount').value = p.discount_percent;
-            document.getElementById('promoStart').value = p.start_date_raw;
-            document.getElementById('promoEnd').value = p.end_date_raw;
-            populateSizeOptions(p.product_id, p.sizename || '');
-            populateColorOptions(p.product_id, p.color_id || '');
-            openPromoModal();
+    document.getElementById('promoProductId').addEventListener('change', (e) => {
+        populateSizeOptions(e.target.value);
+        populateColorOptions(e.target.value);
+    });
+
+    function openPromoModal() {
+        document.getElementById('promoModal').classList.remove('hidden');
+        document.getElementById('promoModal').classList.add('flex');
+    }
+    function closePromoModal() {
+        document.getElementById('promoModal').classList.add('hidden');
+        document.getElementById('promoModal').classList.remove('flex');
+        document.getElementById('promoError').classList.add('hidden');
+    }
+
+    document.getElementById('addPromoBtn').addEventListener('click', () => {
+        document.getElementById('promoModalTitle').textContent = 'Add Promo';
+        document.getElementById('promoId').value = '';
+        document.getElementById('promoProductId').value = '';
+        document.getElementById('promoDiscount').value = '';
+        document.getElementById('promoStart').value = '';
+        document.getElementById('promoEnd').value = '';
+        document.getElementById('promoSize').innerHTML = '<option value="">All sizes</option>';
+        document.getElementById('promoColorId').innerHTML = '<option value="">All colors</option>';
+        openPromoModal();
+    });
+
+    function editPromo(p) {
+        document.getElementById('promoModalTitle').textContent = 'Edit Promo';
+        document.getElementById('promoId').value = p.id;
+        document.getElementById('promoProductId').value = p.product_id;
+        document.getElementById('promoDiscount').value = p.discount_percent;
+        document.getElementById('promoStart').value = p.start_date_raw;
+        document.getElementById('promoEnd').value = p.end_date_raw;
+        populateSizeOptions(p.product_id, p.sizename || '');
+        populateColorOptions(p.product_id, p.color_id || '');
+        openPromoModal();
+    }
+
+    async function savePromo() {
+        const errEl = document.getElementById('promoError');
+        errEl.classList.add('hidden');
+
+        const payload = {
+            id: document.getElementById('promoId').value,
+            product_id: document.getElementById('promoProductId').value,
+            discount_percent: document.getElementById('promoDiscount').value,
+            start_date: document.getElementById('promoStart').value,
+            end_date: document.getElementById('promoEnd').value,
+            sizename: document.getElementById('promoSize').value || null,
+            color_id: document.getElementById('promoColorId').value || null,
+        };
+
+        if (!payload.product_id || !payload.discount_percent || !payload.start_date || !payload.end_date) {
+            errEl.textContent = 'Complete all fields.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (payload.end_date <= payload.start_date) {
+            errEl.textContent = 'End date must be after start date.';
+            errEl.classList.remove('hidden');
+            return;
         }
 
-        async function savePromo() {
-            const errEl = document.getElementById('promoError');
-            errEl.classList.add('hidden');
-
-            const payload = {
-                id: document.getElementById('promoId').value,
-                product_id: document.getElementById('promoProductId').value,
-                discount_percent: document.getElementById('promoDiscount').value,
-                start_date: document.getElementById('promoStart').value,
-                end_date: document.getElementById('promoEnd').value,
-                sizename: document.getElementById('promoSize').value || null,
-                color_id: document.getElementById('promoColorId').value || null,
-            };
-
-            if (!payload.product_id || !payload.discount_percent || !payload.start_date || !payload.end_date) {
-                errEl.textContent = 'Complete all fields.';
-                errEl.classList.remove('hidden');
-                return;
-            }
-            if (payload.end_date <= payload.start_date) {
-                errEl.textContent = 'End date must be after start date.';
-                errEl.classList.remove('hidden');
-                return;
-            }
-
-            const res = await fetch(SAVE_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (!data.ok) {
-                errEl.textContent = data.msg || 'Failed to save.';
-                errEl.classList.remove('hidden');
-                return;
-            }
-            closePromoModal();
-            loadPromoTable();
+        const res = await fetch(SAVE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            errEl.textContent = data.msg || 'Failed to save.';
+            errEl.classList.remove('hidden');
+            return;
         }
+        closePromoModal();
+        loadPromoTable(); // refresh agad after save, hindi na maghihintay ng 10s
+    }
 
-        async function deletePromo(id) {
-            if (!confirm('Delete this promo?')) return;
-            const fd = new FormData();
-            fd.append('id', id);
-            await fetch(DELETE_URL, { method: 'POST', body: fd });
-            loadPromoTable();
-        }
-
+    async function deletePromo(id) {
+        if (!confirm('Delete this promo?')) return;
+        const fd = new FormData();
+        fd.append('id', id);
+        await fetch(DELETE_URL, { method: 'POST', body: fd });
         loadPromoTable();
-    </script>
+    }
+
+    loadPromoTable();
+    pollTimer = setInterval(loadPromoTable, 10000);   // sync sa server kada 10s
+    tickTimer = setInterval(renderPromoTable, 1000);  // update status/countdown kada 1s
+</script>
 
 </body>
 </html>

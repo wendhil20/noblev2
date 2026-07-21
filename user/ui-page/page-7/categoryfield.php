@@ -50,10 +50,14 @@ $maxPrice = (isset($_GET['maxp']) && $_GET['maxp'] !== '') ? floatval($_GET['max
 
 $hasActiveFilters = $minPrice !== null || $maxPrice !== null || $sort !== 'newest';
 
-// ── 5. Fetch products: filtered by subcategory, price range, and sorted ─────
-$products = [];
+// ── 4b. Pagination inputs ────────────────────────────────────────────────────
+$perPage     = 8;
+$currentPage = intval($_GET['page'] ?? 1);
+if ($currentPage < 1) $currentPage = 1;
+$offset = ($currentPage - 1) * $perPage;
 
-$sql = "SELECT
+// ── 5. Build the shared filtered/grouped query (reused for count + page) ────
+$baseSql = "SELECT
             p.id, p.name, p.imageproduct, p.description, p.created_at,
             MIN(v.pricesize) AS min_price,
             MAX(v.pricesize) AS max_price
@@ -61,27 +65,46 @@ $sql = "SELECT
         INNER JOIN nobleproduct_subcategory ps ON ps.product_id = p.id";
 
 if (!$activeSubId) {
-    $sql .= " INNER JOIN noblesubcategory s ON s.id = ps.subcategory_id";
+    $baseSql .= " INNER JOIN noblesubcategory s ON s.id = ps.subcategory_id";
 }
 
-$sql .= " LEFT JOIN nobleproductcolor c ON c.product_id = p.id
+$baseSql .= " LEFT JOIN nobleproductcolor c ON c.product_id = p.id
           LEFT JOIN nobleproductvariant v ON v.color_id = c.id
           WHERE " . ($activeSubId ? "ps.subcategory_id = ?" : "s.category_id = ?");
 
 $types  = "i";
 $params = [$activeSubId ?: $categoryId];
 
-$sql .= " GROUP BY p.id";
+$baseSql .= " GROUP BY p.id";
 
 $having = [];
 if ($minPrice !== null) { $having[] = "MAX(v.pricesize) >= ?"; $types .= "d"; $params[] = $minPrice; }
 if ($maxPrice !== null) { $having[] = "MIN(v.pricesize) <= ?"; $types .= "d"; $params[] = $maxPrice; }
-if ($having) $sql .= " HAVING " . implode(" AND ", $having);
+if ($having) $baseSql .= " HAVING " . implode(" AND ", $having);
 
-$sql .= " ORDER BY " . $sortOptions[$sort];
+// ── 5a. Total count for pagination (wrap grouped query, count rows) ─────────
+$totalProducts = 0;
+$countSql = "SELECT COUNT(*) AS total FROM ($baseSql) AS filtered";
+$stmt = $conn->prepare($countSql);
+$stmt->bind_param($types, ...$params);
+$stmt->execute();
+$countRow = $stmt->get_result()->fetch_assoc();
+$totalProducts = intval($countRow['total'] ?? 0);
+$stmt->close();
+
+$totalPages = max(1, (int)ceil($totalProducts / $perPage));
+if ($currentPage > $totalPages) $currentPage = $totalPages;
+$offset = ($currentPage - 1) * $perPage;
+
+// ── 5b. Fetch products for the current page ──────────────────────────────────
+$products = [];
+
+$sql = $baseSql . " ORDER BY " . $sortOptions[$sort] . " LIMIT ? OFFSET ?";
+$pageTypes  = $types . "ii";
+$pageParams = array_merge($params, [$perPage, $offset]);
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param($types, ...$params);
+$stmt->bind_param($pageTypes, ...$pageParams);
 $stmt->execute();
 $prodResult = $stmt->get_result();
 while ($row = $prodResult->fetch_assoc())
@@ -89,9 +112,21 @@ while ($row = $prodResult->fetch_assoc())
 $stmt->close();
 
 // ── Helper: rebuild query string while overriding specific params ──────────
-function buildUrl(array $overrides = []): string {
-    $base = ['id' => $_GET['id'] ?? '', 'sub' => $_GET['sub'] ?? '', 'sort' => $_GET['sort'] ?? '', 'minp' => $_GET['minp'] ?? '', 'maxp' => $_GET['maxp'] ?? ''];
+function buildUrl(array $overrides = [], bool $resetPage = true): string {
+    $base = [
+        'id'   => $_GET['id'] ?? '',
+        'sub'  => $_GET['sub'] ?? '',
+        'sort' => $_GET['sort'] ?? '',
+        'minp' => $_GET['minp'] ?? '',
+        'maxp' => $_GET['maxp'] ?? '',
+        'page' => $_GET['page'] ?? '',
+    ];
     $merged = array_merge($base, $overrides);
+    // Any change to filters/sub/sort/price should reset pagination back to page 1,
+    // unless the override is explicitly setting the page itself.
+    if ($resetPage && !array_key_exists('page', $overrides)) {
+        $merged['page'] = '';
+    }
     $merged = array_filter($merged, fn($v) => $v !== '' && $v !== null);
     return BASE_URL . '/productcategory?' . http_build_query($merged);
 }
@@ -117,10 +152,10 @@ $sortLabels = [
 
 <?php include ROOT_PATH . '/user/navigation/top.php'; ?>
 
-<div class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
+ <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
 
     <!-- Breadcrumb -->
-    <nav class="flex items-center gap-1.5 text-xs text-gray-400 mb-5">
+    <nav class="flex items-center gap-1.5 text-xs text-gray-400 mb-5 overflow-x-auto whitespace-nowrap">
         <a href="<?= BASE_URL ?>" class="hover:text-amber-600 transition-colors">Home</a>
         <i class="fa-solid fa-chevron-right text-[9px]"></i>
         <span class="text-gray-600 font-medium"><?= htmlspecialchars($category['name']) ?></span>
@@ -148,19 +183,40 @@ $sortLabels = [
 
     <!-- Subcategory boxes with image -->
     <?php if (!empty($subcategories)): ?>
-        <div class="flex flex-wrap gap-3 mb-8">
+        <div class="relative mb-8 group/scroll">
+
+            <!-- Left arrow (desktop only) -->
+            <button type="button" id="subcatScrollLeft" aria-label="Scroll left"
+                    class="hidden md:flex items-center justify-center absolute -left-4 top-1/2 -translate-y-1/2 z-10
+                           w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md text-gray-500
+                           hover:text-amber-600 hover:border-amber-400 transition-colors
+                           opacity-0 pointer-events-none group-hover/scroll:opacity-100 group-hover/scroll:pointer-events-auto">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+
+            <!-- Right arrow (desktop only) -->
+            <button type="button" id="subcatScrollRight" aria-label="Scroll right"
+                    class="hidden md:flex items-center justify-center absolute -right-4 top-1/2 -translate-y-1/2 z-10
+                           w-8 h-8 rounded-full bg-white border border-gray-200 shadow-md text-gray-500
+                           hover:text-amber-600 hover:border-amber-400 transition-colors
+                           opacity-0 pointer-events-none group-hover/scroll:opacity-100 group-hover/scroll:pointer-events-auto">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+
+            <div id="subcatScrollTrack"
+                 class="flex flex-nowrap gap-3 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-1 scroll-smooth scrollbar-hide">
 
             <!-- "All" box -->
             <a href="<?= buildUrl(['sub' => '']) ?>"
-               class="flex flex-col items-center gap-2 w-20 md:w-24 group">
-                <div class="w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 flex items-center justify-center
+               class="flex flex-col items-center gap-2 w-16 sm:w-20 md:w-24 shrink-0 group">
+                <div class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl border-2 flex items-center justify-center
                             overflow-hidden bg-white transition-all duration-200
                             <?= !$activeSubId
                                   ? 'border-amber-500 shadow-md ring-2 ring-amber-100'
                                   : 'border-gray-200 group-hover:border-amber-300' ?>">
-                    <i class="fa-solid fa-grip text-xl md:text-2xl <?= !$activeSubId ? 'text-amber-500' : 'text-gray-300' ?>"></i>
+                    <i class="fa-solid fa-grip text-lg sm:text-xl md:text-2xl <?= !$activeSubId ? 'text-amber-500' : 'text-gray-300' ?>"></i>
                 </div>
-                <span class="text-[11px] md:text-xs font-semibold text-center uppercase tracking-wide leading-tight
+                <span class="text-[10px] sm:text-[11px] md:text-xs font-semibold text-center uppercase tracking-wide leading-tight
                              <?= !$activeSubId ? 'text-amber-600' : 'text-gray-600' ?>">
                     All
                 </span>
@@ -170,8 +226,8 @@ $sortLabels = [
             <?php foreach ($subcategories as $sub): ?>
                 <?php $isActive = $activeSubId === (int)$sub['id']; ?>
                 <a href="<?= buildUrl(['sub' => $sub['id']]) ?>"
-                   class="flex flex-col items-center gap-2 w-20 md:w-24 group">
-                    <div class="w-16 h-16 md:w-20 md:h-20 rounded-xl border-2 flex items-center justify-center
+                   class="flex flex-col items-center gap-2 w-16 sm:w-20 md:w-24 shrink-0 group">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-xl border-2 flex items-center justify-center
                                 overflow-hidden bg-white p-2 transition-all duration-200
                                 <?= $isActive
                                       ? 'border-amber-500 shadow-md ring-2 ring-amber-100'
@@ -181,23 +237,24 @@ $sortLabels = [
                                  alt="<?= htmlspecialchars($sub['name']) ?>"
                                  class="w-full h-full object-contain" loading="lazy">
                         <?php else: ?>
-                            <i class="fa-solid fa-image text-xl md:text-2xl <?= $isActive ? 'text-amber-500' : 'text-gray-300' ?>"></i>
+                            <i class="fa-solid fa-image text-lg sm:text-xl md:text-2xl <?= $isActive ? 'text-amber-500' : 'text-gray-300' ?>"></i>
                         <?php endif; ?>
                     </div>
-                    <span class="text-[11px] md:text-xs font-semibold text-center uppercase tracking-wide leading-tight
+                    <span class="text-[10px] sm:text-[11px] md:text-xs font-semibold text-center uppercase tracking-wide leading-tight
                                  <?= $isActive ? 'text-amber-600' : 'text-gray-600' ?>">
                         <?= htmlspecialchars($sub['name']) ?>
                     </span>
                 </a>
             <?php endforeach; ?>
 
+            </div>
         </div>
     <?php endif; ?>
 
     <!-- Filter / Sort Toolbar -->
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-3 pb-4 border-b border-gray-200">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 pb-4 border-b border-gray-200">
         <p class="text-sm text-gray-500">
-            <?= count($products) === 1 ? 'Product' : 'Products' ?>
+            <?= number_format($totalProducts) ?> <?= $totalProducts === 1 ? 'Product' : 'Products' ?>
             <?php if ($activeSubId): foreach ($subcategories as $sub): if ((int)$sub['id'] === $activeSubId): ?>
                 in <span class="font-medium text-gray-700"> <?= htmlspecialchars($sub['name']) ?></span>
             <?php endif; endforeach; endif; ?>
@@ -205,9 +262,9 @@ $sortLabels = [
 
         <div class="flex items-center gap-2">
             <!-- Price filter -->
-            <div class="relative">
+            <div class="relative flex-1 sm:flex-none">
                 <button type="button" id="priceFilterBtn"
-                        class="flex items-center gap-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-3.5 py-2 hover:border-amber-400 transition-colors">
+                        class="flex items-center justify-center gap-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 sm:py-2 w-full sm:w-auto hover:border-amber-400 transition-colors">
                     <i class="fa-solid fa-sliders text-xs text-gray-400"></i>
                     Price
                     <?php if ($minPrice !== null || $maxPrice !== null): ?>
@@ -215,33 +272,46 @@ $sortLabels = [
                     <?php endif; ?>
                 </button>
 
+                <!-- Backdrop (mobile only, closes panel on tap outside) -->
+                <div id="priceFilterBackdrop" class="hidden fixed inset-0 bg-black/30 z-30 sm:hidden"></div>
+
+                <!-- Panel: bottom sheet on mobile, dropdown on desktop -->
                 <div id="priceFilterPanel"
-                     class="hidden absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-lg p-4 z-20">
+                     class="hidden fixed inset-x-0 bottom-0 z-40 rounded-t-2xl
+                            sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:mt-2 sm:rounded-xl
+                            w-full sm:w-72 max-w-full
+                            bg-white border-t sm:border border-gray-100 shadow-lg sm:shadow-lg p-4 sm:p-4 pb-6 sm:pb-4">
+                    <div class="flex items-center justify-between mb-2 sm:hidden">
+                        <p class="text-sm font-semibold text-gray-700">Filter by Price</p>
+                        <button type="button" id="priceFilterCloseBtn" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100">
+                            <i class="fa-solid fa-xmark text-sm text-gray-500"></i>
+                        </button>
+                    </div>
                     <form method="GET" action="<?= BASE_URL ?>/productcategory" class="space-y-3">
                         <input type="hidden" name="id" value="<?= $categoryId ?>">
                         <?php if ($activeSubId): ?><input type="hidden" name="sub" value="<?= $activeSubId ?>"><?php endif; ?>
                         <?php if ($sort !== 'newest'): ?><input type="hidden" name="sort" value="<?= htmlspecialchars($sort) ?>"><?php endif; ?>
 
-                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Price range</p>
+                        <p class="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Price range</p>
                         <div class="flex items-center gap-2">
                             <div class="relative flex-1">
                                 <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
                                 <input type="number" name="minp" min="0" placeholder="Min"
                                        value="<?= $minPrice !== null ? htmlspecialchars($minPrice) : '' ?>"
-                                       class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100">
+                                       class="w-full pl-6 pr-2 py-2 sm:py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100">
                             </div>
                             <span class="text-gray-300 text-sm">–</span>
                             <div class="relative flex-1">
                                 <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">₱</span>
                                 <input type="number" name="maxp" min="0" placeholder="Max"
                                        value="<?= $maxPrice !== null ? htmlspecialchars($maxPrice) : '' ?>"
-                                       class="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100">
+                                       class="w-full pl-6 pr-2 py-2 sm:py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100">
                             </div>
                         </div>
 
                         <div class="flex items-center gap-2 pt-1">
                             <button type="submit"
-                                    class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold py-2 rounded-md transition-colors">
+                                    class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold py-2.5 sm:py-2 rounded-md transition-colors">
                                 Apply
                             </button>
                             <a href="<?= buildUrl(['minp' => '', 'maxp' => '']) ?>"
@@ -254,13 +324,13 @@ $sortLabels = [
             </div>
 
             <!-- Sort -->
-            <form method="GET" action="<?= BASE_URL ?>/productcategory" class="relative">
+            <form method="GET" action="<?= BASE_URL ?>/productcategory" class="relative flex-1 sm:flex-none">
                 <input type="hidden" name="id" value="<?= $categoryId ?>">
                 <?php if ($activeSubId): ?><input type="hidden" name="sub" value="<?= $activeSubId ?>"><?php endif; ?>
                 <?php if ($minPrice !== null): ?><input type="hidden" name="minp" value="<?= htmlspecialchars($minPrice) ?>"><?php endif; ?>
                 <?php if ($maxPrice !== null): ?><input type="hidden" name="maxp" value="<?= htmlspecialchars($maxPrice) ?>"><?php endif; ?>
                 <select name="sort" onchange="this.form.submit()"
-                        class="appearance-none text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg pl-3.5 pr-8 py-2 hover:border-amber-400 transition-colors cursor-pointer focus:outline-none focus:border-amber-400">
+                        class="appearance-none text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg pl-3.5 pr-8 py-2.5 sm:py-2 w-full sm:w-auto hover:border-amber-400 transition-colors cursor-pointer focus:outline-none focus:border-amber-400">
                     <?php foreach ($sortLabels as $key => $label): ?>
                         <option value="<?= $key ?>" <?= $sort === $key ? 'selected' : '' ?>><?= $label ?></option>
                     <?php endforeach; ?>
@@ -364,6 +434,73 @@ $sortLabels = [
                 </a>
             <?php endforeach; ?>
         </div>
+
+        <!-- Pagination -->
+        <?php if ($totalPages > 1): ?>
+            <?php
+                // Build a compact page-number window: first, last, current ±1, with ellipses
+                $windowStart = max(1, $currentPage - 1);
+                $windowEnd   = min($totalPages, $currentPage + 1);
+            ?>
+            <nav class="mt-8 md:mt-10 flex items-center justify-center gap-1 sm:gap-1.5" aria-label="Pagination">
+
+                <!-- Prev -->
+                <a href="<?= $currentPage > 1 ? buildUrl(['page' => $currentPage - 1], false) : '#' ?>"
+                   class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border text-sm
+                          <?= $currentPage > 1
+                                ? 'border-gray-200 text-gray-600 bg-white hover:border-amber-400 hover:text-amber-600 transition-colors'
+                                : 'border-gray-100 text-gray-300 pointer-events-none' ?>"
+                   <?= $currentPage <= 1 ? 'aria-disabled="true" tabindex="-1"' : '' ?>>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </a>
+
+                <!-- First page + leading ellipsis -->
+                <?php if ($windowStart > 1): ?>
+                    <a href="<?= buildUrl(['page' => 1], false) ?>"
+                       class="w-9 h-9 sm:w-10 sm:h-10 hidden sm:flex items-center justify-center rounded-lg border border-gray-200 text-sm text-gray-600 bg-white hover:border-amber-400 hover:text-amber-600 transition-colors">1</a>
+                    <?php if ($windowStart > 2): ?>
+                        <span class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 items-center justify-center text-gray-300 text-sm">…</span>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <!-- Page window -->
+                <?php for ($i = $windowStart; $i <= $windowEnd; $i++): ?>
+                    <?php $isCurrent = $i === $currentPage; ?>
+                    <a href="<?= buildUrl(['page' => $i], false) ?>"
+                       class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors
+                              <?= $isCurrent
+                                    ? 'border-amber-500 bg-amber-500 text-white'
+                                    : 'border-gray-200 text-gray-600 bg-white hover:border-amber-400 hover:text-amber-600' ?>"
+                       <?= $isCurrent ? 'aria-current="page"' : '' ?>>
+                        <?= $i ?>
+                    </a>
+                <?php endfor; ?>
+
+                <!-- Trailing ellipsis + last page -->
+                <?php if ($windowEnd < $totalPages): ?>
+                    <?php if ($windowEnd < $totalPages - 1): ?>
+                        <span class="hidden sm:flex w-9 h-9 sm:w-10 sm:h-10 items-center justify-center text-gray-300 text-sm">…</span>
+                    <?php endif; ?>
+                    <a href="<?= buildUrl(['page' => $totalPages], false) ?>"
+                       class="w-9 h-9 sm:w-10 sm:h-10 hidden sm:flex items-center justify-center rounded-lg border border-gray-200 text-sm text-gray-600 bg-white hover:border-amber-400 hover:text-amber-600 transition-colors"><?= $totalPages ?></a>
+                <?php endif; ?>
+
+                <!-- Mobile: simple "x of y" indicator -->
+                <span class="sm:hidden flex items-center px-2 text-xs font-medium text-gray-500 whitespace-nowrap">
+                    <?= $currentPage ?> / <?= $totalPages ?>
+                </span>
+
+                <!-- Next -->
+                <a href="<?= $currentPage < $totalPages ? buildUrl(['page' => $currentPage + 1], false) : '#' ?>"
+                   class="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg border text-sm
+                          <?= $currentPage < $totalPages
+                                ? 'border-gray-200 text-gray-600 bg-white hover:border-amber-400 hover:text-amber-600 transition-colors'
+                                : 'border-gray-100 text-gray-300 pointer-events-none' ?>"
+                   <?= $currentPage >= $totalPages ? 'aria-disabled="true" tabindex="-1"' : '' ?>>
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </a>
+            </nav>
+        <?php endif; ?>
     <?php endif; ?>
 
   </div>
@@ -372,19 +509,63 @@ $sortLabels = [
 
   <script>
     (function () {
-        const btn   = document.getElementById('priceFilterBtn');
-        const panel = document.getElementById('priceFilterPanel');
+        const track = document.getElementById('subcatScrollTrack');
+        const leftBtn  = document.getElementById('subcatScrollLeft');
+        const rightBtn = document.getElementById('subcatScrollRight');
+        if (!track || !leftBtn || !rightBtn) return;
+
+        const SCROLL_STEP = 240;
+
+        function updateArrowState() {
+            const maxScroll = track.scrollWidth - track.clientWidth;
+            leftBtn.style.visibility  = track.scrollLeft <= 4 ? 'hidden' : 'visible';
+            rightBtn.style.visibility = track.scrollLeft >= maxScroll - 4 ? 'hidden' : 'visible';
+        }
+
+        leftBtn.addEventListener('click', function () {
+            track.scrollBy({ left: -SCROLL_STEP, behavior: 'smooth' });
+        });
+        rightBtn.addEventListener('click', function () {
+            track.scrollBy({ left: SCROLL_STEP, behavior: 'smooth' });
+        });
+
+        track.addEventListener('scroll', updateArrowState);
+        window.addEventListener('resize', updateArrowState);
+        updateArrowState();
+    })();
+
+    (function () {
+        const btn      = document.getElementById('priceFilterBtn');
+        const panel    = document.getElementById('priceFilterPanel');
+        const backdrop = document.getElementById('priceFilterBackdrop');
+        const closeBtn = document.getElementById('priceFilterCloseBtn');
         if (!btn || !panel) return;
+
+        function openPanel() {
+            panel.classList.remove('hidden');
+            if (backdrop) backdrop.classList.remove('hidden');
+        }
+        function closePanel() {
+            panel.classList.add('hidden');
+            if (backdrop) backdrop.classList.add('hidden');
+        }
 
         btn.addEventListener('click', function (e) {
             e.stopPropagation();
-            panel.classList.toggle('hidden');
+            panel.classList.contains('hidden') ? openPanel() : closePanel();
         });
 
+        if (closeBtn) closeBtn.addEventListener('click', closePanel);
+        if (backdrop) backdrop.addEventListener('click', closePanel);
+
         document.addEventListener('click', function (e) {
-            if (!panel.contains(e.target) && e.target !== btn) {
-                panel.classList.add('hidden');
+            if (window.innerWidth >= 640 && !panel.contains(e.target) && e.target !== btn) {
+                closePanel();
             }
+        });
+
+        window.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closePanel();
         });
     })();
   </script>

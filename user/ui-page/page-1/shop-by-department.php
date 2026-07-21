@@ -58,7 +58,7 @@ while ($row = $deptResult->fetch_assoc())
 
                             <div class="w-16 h-16 md:w-24 md:h-24 rounded-full
                                         flex items-center justify-center overflow-hidden bg-white
-                                        group-hover:border-amber-500 group-hover:shadow-md transition-all duration-200 p-2 md:p-3">
+                                        group-hover:border-amber-500 group-hover:shadow-md transition-all duration-200 p-2 md:p-3 shrink-0">
                                 <?php if (!empty($dept['image'])): ?>
                                     <img src="<?= BASE_URL . '/' . htmlspecialchars($dept['image']) ?>"
                                          alt="<?= htmlspecialchars($dept['name']) ?>"
@@ -70,7 +70,10 @@ while ($row = $deptResult->fetch_assoc())
                                 <?php endif; ?>
                             </div>
 
-                            <span class="text-[10px] md:text-xs font-semibold text-gray-800 text-center uppercase tracking-wide leading-tight">
+                            <span class="w-full block px-0.5 text-[10px] md:text-xs font-semibold text-gray-800
+                                         text-center uppercase tracking-wide leading-tight
+                                         break-words line-clamp-2 min-h-[2em] md:min-h-[2.2em]"
+                                  title="<?= htmlspecialchars($dept['name']) ?>">
                                 <?= htmlspecialchars($dept['name']) ?>
                             </span>
                         </a>
