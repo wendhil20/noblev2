@@ -415,8 +415,7 @@ if (preg_match('#^mainproductview/(\d+)$#', $request, $m)) {
 $file = $routes[$request] ?? null;
 
 if ($file === null) {
-    http_response_code(404);
-    include ROOT_PATH . '/404.php';
+    header('Location: ' . BASE_URL . '/');
     exit;
 }
 
@@ -425,7 +424,6 @@ $filepath = ROOT_PATH . '/' . $file;
 if (file_exists($filepath)) {
     include $filepath;
 } else {
-    http_response_code(404);
-    include ROOT_PATH . '/404.php';
+    header('Location: ' . BASE_URL . '/');
     exit;
 }
