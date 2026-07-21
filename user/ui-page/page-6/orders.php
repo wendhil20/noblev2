@@ -22,11 +22,11 @@ $statusTabs = buildStatusTabs($orders);
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
-    <div class="max-w-7xl mx-auto px-4 py-3 pb-24 md:pb-5">
+    <div class="w-full max-w-7xl mx-auto px-4 py-3 pb-24 md:pb-5">
 
         <div class="flex items-center justify-between mb-4">
             <h1 class="text-lg font-semibold text-gray-900">My Orders</h1>
-          
+
         </div>
 
         <!-- Search -->
@@ -50,13 +50,17 @@ $statusTabs = buildStatusTabs($orders);
     <!-- ═══════════════ ORDER DETAILS MODAL (labas ng #ordersDynamic — hindi apektado ng polling) ═══════════════ -->
     <div id="orderModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4"
         onclick="closeOrderModalBackdrop(event)">
-        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto relative" onclick="event.stopPropagation()">
-            <div class="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between z-10">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto relative"
+            onclick="event.stopPropagation()">
+            <div
+                class="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between z-10">
                 <div class="min-w-0">
                     <p id="modalOrderRef" class="text-sm font-semibold text-gray-900"></p>
                     <p id="modalOrderMeta" class="text-xs text-gray-400"></p>
                 </div>
-                <button onclick="closeOrderModal()" class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0" title="Close">
+                <button onclick="closeOrderModal()"
+                    class="w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0"
+                    title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -121,10 +125,7 @@ $statusTabs = buildStatusTabs($orders);
             let lastVersions = {};
 
             function getOpenOrderIds() {
-                // Modal state na lang ang ginagamit natin ngayon (hindi na
-                // <details open>), kaya wala nang open state na kailangang
-                // i-preserve dito. Pinapanatili lang ang function shape
-                // para hindi masira ang ibang tumatawag dito.
+
                 return new Set();
             }
 
@@ -209,9 +210,6 @@ $statusTabs = buildStatusTabs($orders);
             }
 
             async function poll() {
-                // Huwag mag-poll habang bukas ang modal — hindi natin gustong
-                // magbago ang laman ng list habang tinitingnan ng user ang
-                // detalye ng isang order.
                 const modal = document.getElementById('orderModal');
                 if (isPolling || document.hidden || (modal && !modal.classList.contains('hidden'))) return;
 
@@ -225,6 +223,10 @@ $statusTabs = buildStatusTabs($orders);
                     if (!res.ok) throw new Error('poll_failed_' + res.status);
                     const data = await res.json();
 
+                    // ── i-save ang scroll ng listahan (hindi ng window) bago mag-replace ──
+                    const oldList = document.getElementById('ordersList');
+                    const savedScrollTop = oldList ? oldList.scrollTop : 0;
+
                     const openIds = getOpenOrderIds();
                     dynamicEl.innerHTML = data.html;
                     restoreOpenState(openIds);
@@ -233,6 +235,10 @@ $statusTabs = buildStatusTabs($orders);
                     flashUpdatedOrders(data.version || {});
                     lastVersions = data.version || {};
                     setLiveState(true);
+
+                    // ── ibalik sa BAGONG #ordersList element ──
+                    const newList = document.getElementById('ordersList');
+                    if (newList) newList.scrollTop = savedScrollTop;
                 } catch (err) {
                     setLiveState(false);
                 } finally {

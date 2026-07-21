@@ -96,7 +96,7 @@ $officeBase = $data['officeBase'];
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
-     <div class="max-w-7xl mx-auto px-3 py-5 pb-20 md:pb-5">
+       <div class="w-full max-w-7xl mx-auto px-4 py-3 pb-24 md:pb-5">
 
         <a href="<?= BASE_URL ?>/orders"
             class="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4">
@@ -180,8 +180,31 @@ $officeBase = $data['officeBase'];
 
             const activePickupMaps = {};
 
+            // ─── Sinisira/inaalis ang lahat ng existing map instances bago mag-innerHTML swap ───
+            // ─── Kailangan ito dahil kapag napalitan ang DOM node (kahit same id), yung dating ───
+            // ─── mapboxgl.Map ay naka-attach pa rin sa node na tatanggalin na — kung di ito ───
+            // ─── icleanup, mag-i-stale ang cache at maiiwan blangkong box ang bagong div. ───
+            function destroyPickupMaps() {
+                Object.keys(activePickupMaps).forEach(id => {
+                    try {
+                        activePickupMaps[id].map.remove();
+                    } catch (err) {
+                        // Tahimik lang — baka nadestroy na rin ng browser dahil naalis na sa DOM.
+                    }
+                    delete activePickupMaps[id];
+                });
+            }
+
+            // ─── Gumagawa lang ng bagong map kung wala pang naka-attach sa container na ito ───
             function initPickupMaps() {
                 document.querySelectorAll('.pickup-map').forEach(el => {
+                    const id = el.id;
+
+                    // ─── May existing map na for this container? Skip na lang, wag i-recreate ───
+                    if (activePickupMaps[id]) {
+                        return;
+                    }
+
                     const lat = parseFloat(el.dataset.lat);
                     const lng = parseFloat(el.dataset.lng);
                     if (isNaN(lat) || isNaN(lng)) return;
@@ -199,13 +222,15 @@ $officeBase = $data['officeBase'];
                     });
                     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-                    new mapboxgl.Marker({ color: '#4f46e5' })
+                    const pickupMarker = new mapboxgl.Marker({ color: '#4f46e5' })
                         .setLngLat([lng, lat])
                         .setPopup(new mapboxgl.Popup().setText(el.dataset.pickupAddress || 'Pickup location'))
                         .addTo(map);
 
+                    let clientMarker = null;
+
                     if (hasClientPoint) {
-                        new mapboxgl.Marker({ color: '#dc2626' })
+                        clientMarker = new mapboxgl.Marker({ color: '#dc2626' })
                             .setLngLat([clientLng, clientLat])
                             .setPopup(new mapboxgl.Popup().setText(el.dataset.clientAddress || 'Your address'))
                             .addTo(map);
@@ -216,6 +241,9 @@ $officeBase = $data['officeBase'];
                             map.fitBounds(bounds, { padding: 50, maxZoom: 15 });
                         });
                     }
+
+                    // ─── I-cache para next poll, malalaman nang existing na ito ───
+                    activePickupMaps[id] = { map, pickupMarker, clientMarker };
                 });
             }
 
@@ -401,6 +429,21 @@ $officeBase = $data['officeBase'];
                     });
                     if (!res.ok) throw new Error('poll_failed_' + res.status);
                     const data = await res.json();
+
+                    // ─── KEY FIX #1: kung walang aktwal na pagbabago (same version), ───
+                    // ─── huwag na i-touch ang DOM/map. Dito nagmumula ang dating "reset" ───
+                    // ─── ng maps — laging nire-replace ang innerHTML kahit walang bago. ───
+                    if (data.version === lastVersion) {
+                        return;
+                    }
+
+                    // ─── KEY FIX #2: bago palitan ang HTML, alisin muna nang maayos ang mga ───
+                    // ─── existing Mapbox instances. Kung hindi, mag-i-stale ang cache pag ───
+                    // ─── na-replace ang DOM node (kahit same id) — resulta: blangkong box ───
+                    // ─── pagkatapos ng ilang segundo. ───
+                    if (IS_PICKUP && typeof destroyPickupMaps === 'function') {
+                        destroyPickupMaps();
+                    }
 
                     dynamicEl.innerHTML = data.html;
                     flashIfChanged(data.version);
