@@ -168,30 +168,30 @@ try {
     $bPayMethod   = $paymentMethod;
 
     $ins->bind_param(
-    "sisssisssddsisddddddds",   // ← ITO ang tamang type string
-    $bNhcc,
-    $bUserId,
-    $bCname,
-    $bCemail,
-    $bCphone,
-    $bAddrId,
-    $bAddrFull,
-    $bAddrBgy,
-    $bAddrCity,
-    $bAddrPostal,
-    $bAddrLat,
-    $bAddrLng,
-    $bMethod,
-    $bTruckId,
-    $bTruckName,
-    $bTruckVol,
-    $bTruckWt,
-    $bDistKm,
-    $bDelivFee,
-    $bSubtotal,
-    $bVat,
-    $bGrand,
-    $bPayMethod
+    "sisssissssddsisddddddds",
+    $bNhcc,        // s
+    $bUserId,      // i
+    $bCname,       // s
+    $bCemail,      // s
+    $bCphone,      // s
+    $bAddrId,      // i  ← dati 's'
+    $bAddrFull,    // s  ← dati 'i'
+    $bAddrBgy,     // s
+    $bAddrCity,    // s
+    $bAddrPostal,  // s
+    $bAddrLat,     // d  ← dati 's'
+    $bAddrLng,     // d
+    $bMethod,      // s  ← dati 'd' (ito yung pinaka-sira, kasi 'pickup'/'delivery' string 'to, hindi numero)
+    $bTruckId,     // i  ← dati 's'
+    $bTruckName,   // s  ← dati 'i'
+    $bTruckVol,    // d  ← dati 's'
+    $bTruckWt,     // d
+    $bDistKm,      // d
+    $bDelivFee,    // d
+    $bSubtotal,    // d
+    $bVat,         // d
+    $bGrand,       // d
+    $bPayMethod    // s
 );
 
     if (!$ins->execute()) {
