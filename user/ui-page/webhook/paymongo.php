@@ -168,31 +168,31 @@ try {
     $bPayMethod   = $paymentMethod;
 
     $ins->bind_param(
-        "sissssissssddsisdddddds",
-        $bNhcc,
-        $bUserId,
-        $bCname,
-        $bCemail,
-        $bCphone,
-        $bAddrId,
-        $bAddrFull,
-        $bAddrBgy,
-        $bAddrCity,
-        $bAddrPostal,
-        $bAddrLat,
-        $bAddrLng,
-        $bMethod,
-        $bTruckId,
-        $bTruckName,
-        $bTruckVol,
-        $bTruckWt,
-        $bDistKm,
-        $bDelivFee,
-        $bSubtotal,
-        $bVat,
-        $bGrand,
-        $bPayMethod
-    );
+    "sisssisssddsisddddddds",   // ← FIX: tinanggal yung extra 's'
+    $bNhcc,
+    $bUserId,
+    $bCname,
+    $bCemail,
+    $bCphone,
+    $bAddrId,
+    $bAddrFull,
+    $bAddrBgy,
+    $bAddrCity,
+    $bAddrPostal,
+    $bAddrLat,
+    $bAddrLng,
+    $bMethod,
+    $bTruckId,
+    $bTruckName,
+    $bTruckVol,
+    $bTruckWt,
+    $bDistKm,
+    $bDelivFee,
+    $bSubtotal,
+    $bVat,
+    $bGrand,
+    $bPayMethod
+);
 
     if (!$ins->execute()) {
         throw new \RuntimeException('Execute failed (noblepaidproductlist insert): ' . $ins->error);
