@@ -168,7 +168,7 @@ try {
     $bPayMethod   = $paymentMethod;
 
     $ins->bind_param(
-    "sisssisssddsisddddddds",   // ← FIX: tinanggal yung extra 's'
+    "sisssisssddsisddddddds",   // ← ITO ang tamang type string
     $bNhcc,
     $bUserId,
     $bCname,
