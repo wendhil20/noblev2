@@ -17,8 +17,9 @@ define('QR_SECRET', 'warehouse_secret_2024');
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-
 <link rel="icon" type="image/png" href="<?= BASE_URL ?>/icon/logo.png">
+
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
 <style>
      * {
