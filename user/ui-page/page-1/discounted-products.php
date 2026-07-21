@@ -77,33 +77,34 @@ if (isset($_SESSION['user_id'])) {
 
     <div class="relative">
 
-        <!-- Left arrow -->
-        <button id="discountPrev" onclick="discountSlide(-1)" class="absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
+        <!-- Left arrow (desktop only; mobile uses native touch scroll) -->
+        <button id="discountPrev" onclick="discountSlide(-1)" class="hidden md:flex absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
+               items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
             <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
         </button>
 
-        <!-- Right arrow -->
-        <button id="discountNext" onclick="discountSlide(1)" class="absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
+        <!-- Right arrow (desktop only) -->
+        <button id="discountNext" onclick="discountSlide(1)" class="hidden md:flex absolute -right-2 md:-right-4 top-1/2 -translate-y-1/2 z-10
                w-7 h-7 md:w-9 md:h-9 rounded-full bg-white border border-gray-200 shadow
-               flex items-center justify-center text-gray-600
+               items-center justify-center text-gray-600
                hover:bg-gray-50 transition-colors duration-200">
             <svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
             </svg>
         </button>
 
-        <!-- Track -->
+        <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
         <div class="overflow-hidden px-1 p-2">
-            <div class="flex gap-2 md:gap-4 transition-transform duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
-                id="discountTrack">
+            <div id="discountTrack"
+                class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
+                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <?php foreach ($discountedProducts as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="group rounded-xl md:rounded-2xl overflow-hidden 
-                      block hover:shadow-lg transition-shadow duration-300 shrink-0 relative
+                      block hover:shadow-lg transition-shadow duration-300 shrink-0 relative snap-start
                       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
 
                         <!-- Discount badge -->
@@ -194,41 +195,41 @@ if (isset($_SESSION['user_id'])) {
             const cards = track.querySelectorAll('a');
             const prevBtn = document.getElementById('discountPrev');
             const nextBtn = document.getElementById('discountNext');
-            let current = 0;
 
-            function getVisible() {
-                const w = window.innerWidth;
-                if (w >= 1024) return 4;
-                if (w >= 640) return 3;
-                return 2;
-            }
             function getGap() {
                 return window.innerWidth >= 768 ? 16 : 8;
             }
-            function updateArrows(max) {
-                prevBtn.style.display = current <= 0 ? 'none' : 'flex';
-                nextBtn.style.display = current >= max ? 'none' : 'flex';
-            }
-            function go(idx) {
-                const visible = getVisible();
-                const max = Math.max(0, cards.length - visible);
-                current = Math.min(Math.max(idx, 0), max);
+
+            // Desktop arrow click: scroll by roughly one "page" of visible cards, native smooth scroll
+            function discountSlide(dir) {
+                if (!cards.length) return;
                 const cardW = cards[0].offsetWidth;
                 const gap = getGap();
-                track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
-                updateArrows(max);
+                const containerWidth = track.offsetWidth;
+                const visible = Math.max(1, Math.floor((containerWidth + gap) / (cardW + gap)));
+                track.scrollBy({ left: dir * visible * (cardW + gap), behavior: 'smooth' });
             }
-            window.discountSlide = (dir) => go(current + dir);
+            window.discountSlide = discountSlide;
 
-            let startX = 0;
-            track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-            track.addEventListener('touchend', e => {
-                const diff = startX - e.changedTouches[0].clientX;
-                if (Math.abs(diff) > 40) discountSlide(diff > 0 ? 1 : -1);
-            });
-            window.addEventListener('resize', () => go(current));
+            function updateArrows() {
+                if (!prevBtn || !nextBtn) return;
+                const maxScroll = track.scrollWidth - track.clientWidth;
 
-            go(0); // initial check sa arrows pagka-load
+                if (maxScroll <= 4) {
+                    prevBtn.style.display = 'none';
+                    nextBtn.style.display = 'none';
+                    return;
+                }
+                prevBtn.style.display = track.scrollLeft <= 4 ? 'none' : 'flex';
+                nextBtn.style.display = track.scrollLeft >= maxScroll - 4 ? 'none' : 'flex';
+            }
+
+            // Native scroll fires this on both touch swipe and arrow-triggered scroll
+            track.addEventListener('scroll', updateArrows, { passive: true });
+            window.addEventListener('resize', updateArrows);
+            window.addEventListener('load', updateArrows);
+
+            updateArrows();
         })();
 
         // Save / Unsave (bookmark) functionality — scoped lang sa #discountTrack

@@ -349,9 +349,9 @@ function squigglyUnderline()
 <div id="sidebar-backdrop"
     class="fixed inset-0 bg-black/40 z-50 hidden opacity-0 transition-opacity duration-300 md:hidden"></div>
 
-<!-- Sidebar panel (slides in from left) -->
-<div id="mobile-sidebar" class="fixed top-0 left-0 h-full w-72 max-w-[85vw] bg-white z-[60] shadow-2xl
-            -translate-x-full transition-transform duration-300 ease-in-out
+<!-- Sidebar panel (slides in from the right) -->
+<div id="mobile-sidebar" class="fixed top-0 right-0 h-full w-72 max-w-[85vw] bg-white z-[60] shadow-2xl
+            translate-x-full transition-transform duration-300 ease-in-out
             flex flex-col md:hidden">
 
     <!-- Sidebar Header -->
@@ -569,7 +569,7 @@ function squigglyUnderline()
         backdrop.classList.remove('hidden');
         requestAnimationFrame(() => {
             backdrop.classList.add('opacity-100');
-            sidebar.classList.remove('-translate-x-full');
+            sidebar.classList.remove('translate-x-full');
         });
         document.body.style.overflow = 'hidden';
     }
@@ -577,7 +577,7 @@ function squigglyUnderline()
     function closeSidebar() {
         if (!backdrop || !sidebar) return;
         backdrop.classList.remove('opacity-100');
-        sidebar.classList.add('-translate-x-full');
+        sidebar.classList.add('translate-x-full');
         setTimeout(() => backdrop.classList.add('hidden'), 300);
         document.body.style.overflow = '';
     }
