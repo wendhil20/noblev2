@@ -204,6 +204,7 @@ if (!$order) {
     exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -215,7 +216,7 @@ if (!$order) {
 </head>
 <body class="bg-gray-50">
 
-  <div class="max-w-7xl mx-auto px-6 py-5">
+  <div class="max-w-4xl mx-auto px-6 py-5">
         <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
 
             <!-- Icon -->
@@ -260,10 +261,6 @@ if (!$order) {
                        text-sm font-bold text-center transition">
                 Continue Shopping
             </a>
-
-            <p class="text-[10px] text-gray-400 mt-3">
-                A confirmation email was sent to <?= htmlspecialchars($order['contact_email']) ?>
-            </p>
 
         </div>
     </div>

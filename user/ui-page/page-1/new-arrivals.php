@@ -64,7 +64,7 @@ while ($row = $newResult->fetch_assoc())
         <div class="overflow-hidden px-1 p-2">
             <div id="newArrivalTrack"
                 class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1">
                 <?php foreach ($newArrivals as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative snap-start

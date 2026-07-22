@@ -35,9 +35,6 @@ while ($row = $result->fetch_assoc())
 
 // Kunin yung mga naka-save na product ng current user (para alam kung alin bookmark ang naka-red)
 $savedIds = [];
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 if (isset($_SESSION['user_id'])) {
     $uid = (int) $_SESSION['user_id'];
     $savedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = $uid");
@@ -76,7 +73,7 @@ function formatSoldCount($n)
     </div>
 <?php else: ?>
 
-    <div class="relative">
+    <div class="relative  ">
 
         <!-- Left arrow (desktop only; mobile uses native touch scroll) -->
         <button id="productPrev" onclick="productSlide(-1)" aria-label="Previous product" class="hidden md:flex absolute -left-2 md:-left-4 top-1/2 -translate-y-1/2 z-10
@@ -100,17 +97,17 @@ function formatSoldCount($n)
 
         <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
         <div class="overflow-hidden px-1 p-2">
-            <div id="productTrack"
-                class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div id="productTrack" class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
+                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1 ">
                 <?php foreach ($products as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
                         aria-label="View details for <?= htmlspecialchars($p['name']) ?>" class="group relative rounded-xl md:rounded-2xl overflow-hidden 
       block hover:shadow-lg transition-shadow duration-300 shrink-0 snap-start
-      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
+      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)] hover:text-amber-500 ">
 
                         <!-- Image -->
-                        <div class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
+                        <div
+                            class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
                             <?php if (!empty($p['imageproduct'])): ?>
                                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
                                     alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain">
@@ -120,26 +117,28 @@ function formatSoldCount($n)
                                 </div>
                             <?php endif; ?>
 
-                            <!--
-                                Save / Bookmark button
-                                - Mobile (< md): laging visible -> opacity-100 (default)
-                                - Desktop (md+): hidden by default -> md:opacity-0
-                                              lalabas pag hover sa card -> md:group-hover:opacity-100
-                            -->
-                            <button type="button"
-                                class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
-                                       w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/90 shadow
-                                       flex items-center justify-center"
-                                data-product-id="<?= $p['id'] ?>"
+                            <button type="button" class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
+                                   w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90
+                                   flex items-center justify-center" data-product-id="<?= $p['id'] ?>"
                                 aria-label="Save to favorites">
-                                <i class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-xs md:text-sm"></i>
+                                <i
+                                    class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-lg"></i>
+                            </button>
+
+                            <button type="button" class="share-btn absolute top-11 right-1.5 md:top-14 md:right-2 z-10
+                                   w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90
+                                   flex items-center justify-center
+                                   opacity-100 md:opacity-0 md:group-hover:opacity-100
+                                   transition-opacity duration-200" data-product-id="<?= $p['id'] ?>"
+                                data-product-name="<?= htmlspecialchars($p['name']) ?>" aria-label="Share product">
+                                <i class="fa-solid fa-share-nodes text-orange-400 text-sm md:text-lg"></i>
                             </button>
                         </div>
 
                         <!-- Info -->
-                        <div class="p-2 md:p-3">
+                        <div class="p-2 md:p-3 ">
                             <h3
-                                class="font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
+                                class="font-bold text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
                                 <?= htmlspecialchars($p['name']) ?>
                             </h3>
 
@@ -251,21 +250,54 @@ function formatSoldCount($n)
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: 'product_id=' + encodeURIComponent(productId)
             })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) {
-                    alert(data.message || 'May error, subukan ulit.');
-                    return;
-                }
-                if (data.saved) {
-                    icon.classList.remove('fa-regular', 'text-gray-500');
-                    icon.classList.add('fa-solid', 'text-red-500');
-                } else {
-                    icon.classList.remove('fa-solid', 'text-red-500');
-                    icon.classList.add('fa-regular', 'text-gray-500');
-                }
-            })
-            .catch(() => alert('May error, subukan ulit.'));
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'May error, subukan ulit.');
+                        return;
+                    }
+                    if (data.saved) {
+                        icon.classList.remove('fa-regular', 'text-gray-500');
+                        icon.classList.add('fa-solid', 'text-red-500');
+                    } else {
+                        icon.classList.remove('fa-solid', 'text-red-500');
+                        icon.classList.add('fa-regular', 'text-gray-500');
+                    }
+                })
+                .catch(() => alert('May error, subukan ulit.'));
+        });
+    });
+
+    // Share functionality
+    document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
+            const shareUrl = '<?= BASE_URL ?>/mainproductview?id=' + productId;
+
+            if (navigator.share) {
+                navigator.share({
+                    title: productName,
+                    text: 'Check out ' + productName,
+                    url: shareUrl
+                }).catch(() => { }); // user cancelled, ignore
+            } else {
+                navigator.clipboard.writeText(shareUrl)
+                    .then(() => {
+                        // simple feedback
+                        const icon = this.querySelector('i');
+                        icon.classList.remove('fa-share-nodes');
+                        icon.classList.add('fa-check');
+                        setTimeout(() => {
+                            icon.classList.remove('fa-check');
+                            icon.classList.add('fa-share-nodes');
+                        }, 1500);
+                    })
+                    .catch(() => alert('Link: ' + shareUrl));
+            }
         });
     });
 </script>

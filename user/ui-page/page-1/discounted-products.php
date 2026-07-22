@@ -51,9 +51,6 @@ while ($row = $discResult->fetch_assoc())
 
 // Kunin yung mga naka-save na product ng current user (para alam kung alin bookmark ang naka-red)
 $discSavedIds = [];
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
 if (isset($_SESSION['user_id'])) {
     $uid = (int) $_SESSION['user_id'];
     $discSavedResult = $conn->query("SELECT product_id FROM noblesavedproduct WHERE user_id = $uid");
@@ -101,11 +98,11 @@ if (isset($_SESSION['user_id'])) {
         <div class="overflow-hidden px-1 p-2">
             <div id="discountTrack"
                 class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1">
                 <?php foreach ($discountedProducts as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="group rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative snap-start
-                      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)]">
+                      w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)] hover:text-amber-500">
 
                         <!-- Discount badge -->
                         <span
@@ -127,18 +124,33 @@ if (isset($_SESSION['user_id'])) {
                             <!-- Save / Bookmark button -->
                             <button type="button"
                                 class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
-                                       w-7 h-7 md:w-8 md:h-8 rounded-full bg-white/90 shadow
-                                       flex items-center justify-center"
+                                       w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90 shadow
+                                       flex items-center justify-center
+                                       opacity-100 md:opacity-0 md:group-hover:opacity-100
+                                       transition-opacity duration-200"
                                 data-product-id="<?= $p['id'] ?>"
                                 aria-label="Save to favorites">
-                                <i class="<?= in_array($p['id'], $discSavedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-xs md:text-sm"></i>
+                                <i class="<?= in_array($p['id'], $discSavedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-lg"></i>
+                            </button>
+
+                            <!-- Share button -->
+                            <button type="button"
+                                class="share-btn absolute top-11 right-1.5 md:top-14 md:right-2 z-10
+                                       w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90 shadow
+                                       flex items-center justify-center
+                                       opacity-100 md:opacity-0 md:group-hover:opacity-100
+                                       transition-opacity duration-200"
+                                data-product-id="<?= $p['id'] ?>"
+                                data-product-name="<?= htmlspecialchars($p['name']) ?>"
+                                aria-label="Share product">
+                                <i class="fa-solid fa-share-nodes text-orange-500 text-sm md:text-base"></i>
                             </button>
                         </div>
 
                         <!-- Info -->
                         <div class="p-2 md:p-3">
                             <h3
-                                class="font-bold text-gray-900 text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
+                                class="font-bold text-xs md:text-sm uppercase tracking-wide leading-snug mb-0.5 md:mb-1 line-clamp-1">
                                 <?= htmlspecialchars($p['name']) ?>
                             </h3>
 
@@ -261,6 +273,38 @@ if (isset($_SESSION['user_id'])) {
                     }
                 })
                 .catch(() => alert('May error, subukan ulit.'));
+            });
+        });
+
+        // Share functionality — scoped lang sa #discountTrack
+        document.querySelectorAll('#discountTrack .share-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const productId = this.dataset.productId;
+                const productName = this.dataset.productName;
+                const shareUrl = '<?= BASE_URL ?>/mainproductview?id=' + productId;
+
+                if (navigator.share) {
+                    navigator.share({
+                        title: productName,
+                        text: 'Check out ' + productName,
+                        url: shareUrl
+                    }).catch(() => {}); // user cancelled, ignore
+                } else {
+                    navigator.clipboard.writeText(shareUrl)
+                        .then(() => {
+                            const icon = this.querySelector('i');
+                            icon.classList.remove('fa-share-nodes');
+                            icon.classList.add('fa-check');
+                            setTimeout(() => {
+                                icon.classList.remove('fa-check');
+                                icon.classList.add('fa-share-nodes');
+                            }, 1500);
+                        })
+                        .catch(() => alert('Link: ' + shareUrl));
+                }
             });
         });
     </script>

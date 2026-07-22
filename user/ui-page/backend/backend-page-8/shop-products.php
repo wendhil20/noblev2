@@ -281,11 +281,11 @@ ob_start();
 
             <button type="button"
             class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-20
-                   w-6 h-6 md:w-7 md:h-7 rounded-full bg-white/90 shadow
+                  w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90 shadow
                    flex items-center justify-center"
             data-product-id="<?= $p['id'] ?>"
             aria-label="Save to favorites">
-            <i class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500' ?> fa-bookmark text-[10px] md:text-xs"></i>
+            <i class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-2xl"></i>
         </button>
 
             <?php if (!empty($p['imageproduct'])): ?>
