@@ -43,6 +43,44 @@ $dbColors = loadProductColors($conn, $productId);
 $categories = loadCategories($conn);
 $uploadUrl = BASE_URL . '/uploads/';
 $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
+
+// ── Detect "simple product" pattern (1 color named "Default" with 1 variant
+//    named "Default") — created via the Insert page's simple-product toggle.
+//    We surface this as the same simplified UI instead of a confusing
+//    editable "Default" color/size card. ─────────────────────────────────────
+$isSimpleProduct = false;
+$simpleColorId = '';
+$simpleVariantId = '';
+$simplePrice = 0;
+$simpleDiscount = 0;
+$simpleStock = 0;
+$simpleWidth = 0;
+$simpleHeight = 0;
+$simpleLength = 0;
+$simpleDimUnit = 'cm';
+$simpleWeight = 0;
+$simpleWeightUnit = 'kg';
+
+if (
+    count($dbColors) === 1
+    && ($dbColors[0]['colorname'] ?? '') === 'Default'
+    && count($dbColors[0]['variants'] ?? []) === 1
+    && ($dbColors[0]['variants'][0]['sizename'] ?? '') === 'Default'
+) {
+    $isSimpleProduct = true;
+    $simpleColorId = $dbColors[0]['id'];
+    $v = $dbColors[0]['variants'][0];
+    $simpleVariantId = $v['id'];
+    $simplePrice = $v['pricesize'];
+    $simpleDiscount = $v['discountvariant'];
+    $simpleStock = $v['stock'];
+    $simpleWidth = $v['width'];
+    $simpleHeight = $v['height'];
+    $simpleLength = $v['leght'];
+    $simpleDimUnit = $v['dimension_unit'];
+    $simpleWeight = $v['weight'];
+    $simpleWeightUnit = $v['weight_unit'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -223,12 +261,106 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
                                     to <strong>.webp</strong>.<br>Leave empty to keep existing image.</p>
                             </div>
                         </div>
+
+                        <!-- Simple product toggle -->
+                        <div class="col-span-2 pt-2 border-t border-gray-100">
+                            <label class="flex items-center gap-2 cursor-pointer w-fit">
+                                <input type="checkbox" id="simple-product-toggle"
+                                    <?= $isSimpleProduct ? 'checked' : '' ?>
+                                    onchange="onToggleSimpleProduct(this)"
+                                    class="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400">
+                                <span class="text-xs font-medium text-gray-600">
+                                    Simple product — no colors or sizes (e.g. a mouse, single SKU)
+                                </span>
+                            </label>
+                            <p id="simple-toggle-hint" class="text-[10px] text-amber-500 mt-1 hidden">
+                                Switching this will replace this product's existing colors/sizes when you save.
+                            </p>
+
+                            <div id="simple-fields" class="<?= $isSimpleProduct ? '' : 'hidden' ?> mt-4 space-y-4">
+                                <!-- Same field names the update handler already expects for colors/variants —
+                                     no handler changes needed. Disabled when hidden so they don't get posted
+                                     alongside a real color-card #0 when the toggle is off. -->
+                                <input type="hidden" name="color_id[0]" id="simple-color-id"
+                                    value="<?= htmlspecialchars((string) $simpleColorId) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>>
+                                <input type="hidden" name="color_name[0]" value="Default" <?= $isSimpleProduct ? '' : 'disabled' ?>>
+                                <input type="hidden" name="color_price[0]" value="0" <?= $isSimpleProduct ? '' : 'disabled' ?>>
+                                <input type="hidden" name="variant_id[0][0]" id="simple-variant-id"
+                                    value="<?= htmlspecialchars((string) $simpleVariantId) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>>
+                                <input type="hidden" name="size_name[0][0]" value="Default" <?= $isSimpleProduct ? '' : 'disabled' ?>>
+
+                                <div class="grid grid-cols-7 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Price (₱)</label>
+                                        <input type="number" name="size_price[0][0]" min="0" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simplePrice) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Discount (%)</label>
+                                        <input type="number" name="size_discount[0][0]" min="0" max="100" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simpleDiscount) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Stock</label>
+                                        <input type="number" name="size_stock[0][0]" min="0" step="1"
+                                            value="<?= htmlspecialchars((string) $simpleStock) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Width</label>
+                                        <input type="number" name="size_width[0][0]" min="0" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simpleWidth) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Height</label>
+                                        <input type="number" name="size_height[0][0]" min="0" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simpleHeight) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Length</label>
+                                        <input type="number" name="size_length[0][0]" min="0" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simpleLength) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Unit</label>
+                                        <select name="size_dimension_unit[0][0]" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                            <?php foreach (['mm', 'cm', 'm', 'inches'] as $u): ?>
+                                                <option value="<?= $u ?>" <?= $simpleDimUnit === $u ? 'selected' : '' ?>><?= $u ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-7 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Weight</label>
+                                        <input type="number" name="size_weight[0][0]" min="0" step="0.01"
+                                            value="<?= htmlspecialchars((string) $simpleWeight) ?>" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">W. Unit</label>
+                                        <select name="size_weight_unit[0][0]" <?= $isSimpleProduct ? '' : 'disabled' ?>
+                                            class="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                            <?php foreach (['kg', 'g', 'lbs', 'oz'] as $u): ?>
+                                                <option value="<?= $u ?>" <?= $simpleWeightUnit === $u ? 'selected' : '' ?>><?= $u ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="flex justify-end">
-                    <button type="button" onclick="goToStep(2)"
+                    <button type="button" onclick="goNextFromStep1()"
                         class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition flex items-center gap-2">
-                        Next: Colors <i class="fa-solid fa-arrow-right text-xs"></i>
+                        Next <i class="fa-solid fa-arrow-right text-xs"></i>
                     </button>
                 </div>
             </div>
@@ -304,7 +436,7 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
                         Spec" to begin.</p>
                 </div>
                 <div class="flex justify-between">
-                    <button type="button" onclick="goToStep(3)"
+                    <button type="button" onclick="goPrevFromStep4()"
                         class="px-5 py-2.5 border border-gray-200 bg-white text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
                         <i class="fa-solid fa-arrow-left text-xs"></i> Back
                     </button>
@@ -462,6 +594,52 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
         const variantCount = {};
         const UNITS = ['mm', 'cm', 'm', 'inches'];
 
+        /* ═══════════════════════════════════════════════════════
+           SIMPLE PRODUCT (no colors / no sizes)
+        ═══════════════════════════════════════════════════════ */
+        let isSimpleProduct = <?= json_encode($isSimpleProduct) ?>;
+        const WAS_SIMPLE_PRODUCT = <?= json_encode($isSimpleProduct) ?>; // original DB state, for warning logic
+
+        function onToggleSimpleProduct(checkbox) {
+            const checked = checkbox.checked;
+
+            // Warn if this flips the product's structural type — switching
+            // will replace existing colors/sizes (or the Default record) on save.
+            if (checked !== WAS_SIMPLE_PRODUCT) {
+                document.getElementById('simple-toggle-hint').classList.remove('hidden');
+            } else {
+                document.getElementById('simple-toggle-hint').classList.add('hidden');
+            }
+
+            toggleSimpleProduct(checked);
+        }
+
+        function toggleSimpleProduct(checked) {
+            isSimpleProduct = checked;
+            const panel = document.getElementById('simple-fields');
+            panel.classList.toggle('hidden', !checked);
+            panel.querySelectorAll('input, select').forEach(el => el.disabled = !checked);
+
+            if (checked) {
+                // Clear out any color/variant cards — they won't be submitted/used.
+                document.getElementById('color-list').innerHTML = '';
+                colorCount = 0;
+                Object.keys(variantCount).forEach(k => delete variantCount[k]);
+            } else if (!document.querySelectorAll('[id^="color-card-"]').length) {
+                // Restore a default color card if none exist (e.g. switching
+                // a simple product back to multi-color/size for the first time).
+                addColor();
+            }
+        }
+
+        function goNextFromStep1() {
+            goToStep(isSimpleProduct ? 4 : 2);
+        }
+
+        function goPrevFromStep4() {
+            goToStep(isSimpleProduct ? 1 : 3);
+        }
+
         function goToStep(n) {
             document.querySelectorAll('.step-panel').forEach(p => p.classList.add('hidden'));
             document.getElementById('step-panel-' + n).classList.remove('hidden');
@@ -491,7 +669,7 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
             }
 
             currentStep = n;
-            if (n === 3) renderVariantsWrapper();
+            if (n === 3 && !isSimpleProduct) renderVariantsWrapper();
             if (n === 6) renderReview();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -801,6 +979,37 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
                     </div>
                 </div>
             </div>`;
+
+            if (isSimpleProduct) {
+                const price = parseFloat(document.querySelector('[name="size_price[0][0]"]')?.value || 0);
+                const stock = parseInt(document.querySelector('[name="size_stock[0][0]"]')?.value || 0, 10);
+                const discount = parseFloat(document.querySelector('[name="size_discount[0][0]"]')?.value || 0);
+                const width = parseFloat(document.querySelector('[name="size_width[0][0]"]')?.value || 0);
+                const height = parseFloat(document.querySelector('[name="size_height[0][0]"]')?.value || 0);
+                const length = parseFloat(document.querySelector('[name="size_length[0][0]"]')?.value || 0);
+                const dimUnit = document.querySelector('[name="size_dimension_unit[0][0]"]')?.value || 'cm';
+                const weight = parseFloat(document.querySelector('[name="size_weight[0][0]"]')?.value || 0);
+                const weightUnit = document.querySelector('[name="size_weight_unit[0][0]"]')?.value || 'kg';
+                const isNew = !WAS_SIMPLE_PRODUCT;
+                const badge = isNew
+                    ? `<span class="text-[10px] text-green-500 bg-green-50 px-1.5 py-0.5 rounded-full">new</span>`
+                    : `<span class="text-[10px] text-blue-400 bg-blue-50 px-1.5 py-0.5 rounded-full">existing</span>`;
+                html += `
+                <div class="rounded-lg border border-gray-100 p-4">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Simple Product (no colors/sizes) ${badge}</p>
+                    <div class="grid grid-cols-3 gap-4 text-xs mb-3">
+                        <p><span class="text-gray-400">Price:</span> <strong>₱${price.toFixed(2)}</strong></p>
+                        <p><span class="text-gray-400">Stock:</span> <strong>${stock}</strong></p>
+                        <p><span class="text-gray-400">Discount:</span> <strong>${discount.toFixed(2)}%</strong></p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <p><span class="text-gray-400">Dimensions (W×H×L):</span> <strong>${width} × ${height} × ${length} ${dimUnit}</strong></p>
+                        <p><span class="text-gray-400">Weight:</span> <strong>${weight.toFixed(2)} ${weightUnit}</strong></p>
+                    </div>
+                </div>`;
+                el.innerHTML = html;
+                return;
+            }
 
             getActiveColorIndices().forEach(ci => {
                 const cName = document.querySelector(`input[name="color_name[${ci}]"]`)?.value || '—';
@@ -1168,10 +1377,15 @@ $SELF = BASE_URL . '/ps-updateproductlist?id=' . $productId;
             }
         });
 
-        if (DB_COLORS.length) {
-            DB_COLORS.forEach(dbColor => addColor(dbColor));
-        } else {
-            addColor();
+        // Only seed the multi-color/size UI when this isn't the simple-product
+        // view — avoids creating a stray "Default" color-card #0 that would
+        // collide with the simple-fields hidden inputs which already use index 0.
+        if (!isSimpleProduct) {
+            if (DB_COLORS.length) {
+                DB_COLORS.forEach(dbColor => addColor(dbColor));
+            } else {
+                addColor();
+            }
         }
         seedSpecs();
         seedGallery();

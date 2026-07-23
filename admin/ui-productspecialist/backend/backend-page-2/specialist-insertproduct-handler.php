@@ -11,6 +11,7 @@ try {
     $description = trim($_POST['product_description'] ?? '');
     $category = trim($_POST['product_category'] ?? '');
     $unit = trim($_POST['product_unit'] ?? '');
+    $isSimpleProduct = !empty($_POST['is_simple_product']);
 
     if (empty($name) || empty($category)) {
         throw new Exception('Product name and category are required.');
@@ -55,87 +56,138 @@ try {
     $galleryJson = !empty($galleryFilenames) ? json_encode($galleryFilenames) : null;
 
     // ── Insert product ─────────────────────────────────────────────────────
-$createdBy = $_SESSION['account_id'] ?? null;
+    $createdBy = $_SESSION['account_id'] ?? null;
 
-$stmt = $conn->prepare(
-    "INSERT INTO nobleproduct (name, imageproduct, description, category, unit, specifications, gallery, created_by, updated_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-);
-$stmt->bind_param("sssssssii", $name, $productImage, $description, $category, $unit, $specificationsJson, $galleryJson, $createdBy, $createdBy);
-$stmt->execute();
-$productId = $conn->insert_id;
-$stmt->close();
+    $stmt = $conn->prepare(
+        "INSERT INTO nobleproduct (name, imageproduct, description, category, unit, specifications, gallery, created_by, updated_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    $stmt->bind_param("sssssssii", $name, $productImage, $description, $category, $unit, $specificationsJson, $galleryJson, $createdBy, $createdBy);
+    $stmt->execute();
+    $productId = $conn->insert_id;
+    $stmt->close();
 
-    // ── Colors ─────────────────────────────────────────────────────────────
-    $colorNames = $_POST['color_name'] ?? [];
-    $colorPrices = $_POST['color_price'] ?? [];
-
-    foreach ($colorNames as $ci => $colorName) {
-        $colorName = trim($colorName);
-        $priceColor = floatval($colorPrices[$ci] ?? 0);
-
-        if (empty($colorName))
-            continue;
-
-        $colorImage = '';
-        if (!empty($_FILES['color_image']['tmp_name'][$ci])) {
-            $fakeFile = [
-                'tmp_name' => $_FILES['color_image']['tmp_name'][$ci],
-                'type' => $_FILES['color_image']['type'][$ci],
-            ];
-            $colorImage = convertToWebp($fakeFile, $uploadDir);
-            if (!$colorImage) {
-                throw new Exception("Failed to convert color image ($colorName) to WebP.");
-            }
-        }
+    if ($isSimpleProduct) {
+        // ── Simple product: single hidden "Default" color + "Default" variant ──
+        // Frontend (mainproductview.php) detects this pattern and hides the
+        // color/size pickers, auto-selecting this variant instead.
+        $defaultColorName = 'Default';
+        $defaultImage = '';
+        $defaultColorPrice = 0.0;
 
         $stmt = $conn->prepare(
             "INSERT INTO nobleproductcolor (product_id, colorname, imagecolor, pricecolor)
              VALUES (?, ?, ?, ?)"
         );
-        $stmt->bind_param("issd", $productId, $colorName, $colorImage, $priceColor);
+        $stmt->bind_param("issd", $productId, $defaultColorName, $defaultImage, $defaultColorPrice);
         $stmt->execute();
         $colorId = $conn->insert_id;
         $stmt->close();
 
-        // ── Variants (sizes) per color ─────────────────────────────────────
-        $sizeNames = $_POST['size_name'][$ci] ?? [];
-        $sizePrices = $_POST['size_price'][$ci] ?? [];
-        $discounts = $_POST['size_discount'][$ci] ?? [];
-        $widths = $_POST['size_width'][$ci] ?? [];
-        $heights = $_POST['size_height'][$ci] ?? [];
-        $lengths = $_POST['size_length'][$ci] ?? [];
-        $dimUnits = $_POST['size_dimension_unit'][$ci] ?? [];
-        $weights = $_POST['size_weight'][$ci] ?? [];
-        $weightUnits = $_POST['size_weight_unit'][$ci] ?? [];
-        $stocks = $_POST['size_stock'][$ci] ?? [];
+        $priceSize = floatval($_POST['simple_price'] ?? 0);
+        $discount = floatval($_POST['simple_discount'] ?? 0);
+        $stock = intval($_POST['simple_stock'] ?? 0);
+        $defaultSizeName = 'Default';
+        $width = floatval($_POST['simple_width'] ?? 0);
+        $height = floatval($_POST['simple_height'] ?? 0);
+        $length = floatval($_POST['simple_length'] ?? 0);
+        $dimUnit = $_POST['simple_dimension_unit'] ?? 'cm';
+        $weight = floatval($_POST['simple_weight'] ?? 0);
+        $weightUnit = $_POST['simple_weight_unit'] ?? 'kg';
 
-        foreach ($sizeNames as $si => $sizeName) {
-            $sizeName = trim($sizeName);
-            if (empty($sizeName))
+        $stmt = $conn->prepare(
+            "INSERT INTO nobleproductvariant
+                (color_id, sizename, pricesize, discountvariant, width, height, leght, dimension_unit, weight, weight_unit, stock)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        );
+        $stmt->bind_param(
+            "isddddddssi",
+            $colorId,
+            $defaultSizeName,
+            $priceSize,
+            $discount,
+            $width,
+            $height,
+            $length,
+            $dimUnit,
+            $weight,
+            $weightUnit,
+            $stock
+        );
+        $stmt->execute();
+        $stmt->close();
+
+    } else {
+        // ── Colors ─────────────────────────────────────────────────────────
+        $colorNames = $_POST['color_name'] ?? [];
+        $colorPrices = $_POST['color_price'] ?? [];
+
+        foreach ($colorNames as $ci => $colorName) {
+            $colorName = trim($colorName);
+            $priceColor = floatval($colorPrices[$ci] ?? 0);
+
+            if (empty($colorName))
                 continue;
 
-            $priceSize = floatval($sizePrices[$si] ?? 0);
-            $discount = floatval($discounts[$si] ?? 0);
-            $width = floatval($widths[$si] ?? 0);
-            $height = floatval($heights[$si] ?? 0);
-            $length = floatval($lengths[$si] ?? 0);
-            $dimUnit = $dimUnits[$si] ?? 'cm';
-            $weight = floatval($weights[$si] ?? 0);
-            $weightUnit = $weightUnits[$si] ?? 'kg';
-            $stock = intval($stocks[$si] ?? 0);
+            $colorImage = '';
+            if (!empty($_FILES['color_image']['tmp_name'][$ci])) {
+                $fakeFile = [
+                    'tmp_name' => $_FILES['color_image']['tmp_name'][$ci],
+                    'type' => $_FILES['color_image']['type'][$ci],
+                ];
+                $colorImage = convertToWebp($fakeFile, $uploadDir);
+                if (!$colorImage) {
+                    throw new Exception("Failed to convert color image ($colorName) to WebP.");
+                }
+            }
 
             $stmt = $conn->prepare(
-                "INSERT INTO nobleproductvariant
-                    (color_id, sizename, pricesize, discountvariant, width, height, leght, dimension_unit, weight, weight_unit, stock)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                "INSERT INTO nobleproductcolor (product_id, colorname, imagecolor, pricecolor)
+                 VALUES (?, ?, ?, ?)"
             );
-            $stmt->bind_param("isddddddssi", $colorId, $sizeName, $priceSize, $discount, $width, $height, $length, $dimUnit, $weight, $weightUnit, $stock);
+            $stmt->bind_param("issd", $productId, $colorName, $colorImage, $priceColor);
             $stmt->execute();
+            $colorId = $conn->insert_id;
             $stmt->close();
+
+            // ── Variants (sizes) per color ─────────────────────────────────────
+            $sizeNames = $_POST['size_name'][$ci] ?? [];
+            $sizePrices = $_POST['size_price'][$ci] ?? [];
+            $discounts = $_POST['size_discount'][$ci] ?? [];
+            $widths = $_POST['size_width'][$ci] ?? [];
+            $heights = $_POST['size_height'][$ci] ?? [];
+            $lengths = $_POST['size_length'][$ci] ?? [];
+            $dimUnits = $_POST['size_dimension_unit'][$ci] ?? [];
+            $weights = $_POST['size_weight'][$ci] ?? [];
+            $weightUnits = $_POST['size_weight_unit'][$ci] ?? [];
+            $stocks = $_POST['size_stock'][$ci] ?? [];
+
+            foreach ($sizeNames as $si => $sizeName) {
+                $sizeName = trim($sizeName);
+                if (empty($sizeName))
+                    continue;
+
+                $priceSize = floatval($sizePrices[$si] ?? 0);
+                $discount = floatval($discounts[$si] ?? 0);
+                $width = floatval($widths[$si] ?? 0);
+                $height = floatval($heights[$si] ?? 0);
+                $length = floatval($lengths[$si] ?? 0);
+                $dimUnit = $dimUnits[$si] ?? 'cm';
+                $weight = floatval($weights[$si] ?? 0);
+                $weightUnit = $weightUnits[$si] ?? 'kg';
+                $stock = intval($stocks[$si] ?? 0);
+
+                $stmt = $conn->prepare(
+                    "INSERT INTO nobleproductvariant
+                        (color_id, sizename, pricesize, discountvariant, width, height, leght, dimension_unit, weight, weight_unit, stock)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                );
+                $stmt->bind_param("isddddddssi", $colorId, $sizeName, $priceSize, $discount, $width, $height, $length, $dimUnit, $weight, $weightUnit, $stock);
+                $stmt->execute();
+                $stmt->close();
+            }
         }
     }
-
 
     $conn->commit();
     $success = 'Product <strong>' . htmlspecialchars($name) . '</strong> has been saved successfully.';

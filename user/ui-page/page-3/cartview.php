@@ -100,6 +100,14 @@ function resolvePromoDiscount(array $promosByProduct, $productId, $colorId, $siz
     return $best;
 }
 
+// ─── Simple products (walang totoong color/size) ay naka-store gamit ang
+// placeholder na "Default" color + "Default" size
+// (see specialist-insertproduct-handler.php). Wala itong value sa user
+// kaya hinihide na lang natin sa cart display. ────────────────────────────────
+function isDefaultVariantLabel($colorName, $sizeName) {
+    return trim((string) $colorName) === 'Default' && trim((string) $sizeName) === 'Default';
+}
+
 // ─── Compute subtotal with tier discounts applied ─────────────────────────────
 $subtotal = 0;
 foreach ($cartItems as $item) {
@@ -245,12 +253,14 @@ $LOW_STOCK_THRESHOLD = 5;
                                             class="block text-sm font-semibold text-gray-900 hover:text-amber-600 transition leading-tight mt-0.5 truncate max-w-xs">
                                             <?= htmlspecialchars($item['product_name']) ?>
                                         </a>
-                                        <p class="text-xs text-gray-400 mt-0.5">
-                                            <?= htmlspecialchars($item['colorname']) ?>
-                                            <?php if (!empty($item['sizename'])): ?>
-                                                · <?= htmlspecialchars($item['sizename']) ?>
-                                            <?php endif; ?>
-                                        </p>
+                                        <?php if (!isDefaultVariantLabel($item['colorname'], $item['sizename'])): ?>
+                                            <p class="text-xs text-gray-400 mt-0.5">
+                                                <?= htmlspecialchars($item['colorname']) ?>
+                                                <?php if (!empty($item['sizename'])): ?>
+                                                    · <?= htmlspecialchars($item['sizename']) ?>
+                                                <?php endif; ?>
+                                            </p>
+                                        <?php endif; ?>
 
                                         <!-- Stock indicator -->
                                         <p class="text-[11px] mt-1" id="stock-label-<?= $item['cart_id'] ?>">
@@ -367,12 +377,14 @@ $LOW_STOCK_THRESHOLD = 5;
                                     <span class="text-xs text-gray-500 leading-snug line-clamp-2">
                                         <?= htmlspecialchars($item['product_name']) ?>
                                         <span class="text-gray-400" id="summary-qty-<?= $item['cart_id'] ?>">× <?= $qty ?></span>
-                                        <span class="block text-[10px] text-gray-400 mt-0.5">
-                                            <?= htmlspecialchars($item['colorname']) ?>
-                                            <?php if (!empty($item['sizename'])): ?>
-                                                · <?= htmlspecialchars($item['sizename']) ?>
-                                            <?php endif; ?>
-                                        </span>
+                                        <?php if (!isDefaultVariantLabel($item['colorname'], $item['sizename'])): ?>
+                                            <span class="block text-[10px] text-gray-400 mt-0.5">
+                                                <?= htmlspecialchars($item['colorname']) ?>
+                                                <?php if (!empty($item['sizename'])): ?>
+                                                    · <?= htmlspecialchars($item['sizename']) ?>
+                                                <?php endif; ?>
+                                            </span>
+                                        <?php endif; ?>
                                         <?php if ($tierDiscount > 0): ?>
                                             <span class="block text-[10px] text-green-600 font-semibold mt-0.5">
                                                 <i class="fa-solid fa-tag mr-0.5"></i>-<?= $tierDiscount ?>% qty discount applied

@@ -56,6 +56,15 @@
         return parseFloat(num).toLocaleString('en-PH', { minimumFractionDigits: 2 });
     }
 
+    // Simple products ay gumagamit ng placeholder na "Default" color/size
+    // (see specialist-insertproduct-handler.php + cartview.php). Wala itong
+    // value sa user kaya hinihide na lang natin dito sa mini cart.
+    function isDefaultVariantLabel(variantStr) {
+        if (!variantStr) return false;
+        const v = variantStr.trim();
+        return v === 'Default' || v === 'Default · Default';
+    }
+
     function renderItems(data) {
         if (!data.items || data.items.length === 0) {
             body.innerHTML = '<div class="px-4 py-8 text-center text-xs text-gray-400">Your cart is empty.</div>';
@@ -80,7 +89,7 @@
                 <div class="min-w-0 flex-1">
                     <a href="<?= BASE_URL ?>/mainproductview?id=${item.product_id}"
                        class="text-xs text-gray-800 font-medium truncate block hover:text-amber-600">${item.name}</a>
-                    <p class="text-[11px] text-gray-400 truncate">${item.variant ?? ''}</p>
+                    ${isDefaultVariantLabel(item.variant) ? '' : `<p class="text-[11px] text-gray-400 truncate">${item.variant}</p>`}
                     <p class="text-[11px] font-semibold text-gray-700 mt-0.5">
                         ₱${formatPrice(item.price)}
                         ${(item.variant_disc > 0 || item.tier_discount > 0)

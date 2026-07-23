@@ -2,6 +2,16 @@
 // checkout.php
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
+
+// Simple products (walang totoong color/size) ay naka-store gamit ang
+// placeholder na "Default" color + "Default" size
+// (see specialist-insertproduct-handler.php + cartview.php). Wala itong
+// value sa user kaya hinihide na lang natin sa checkout summary.
+if (!function_exists('isDefaultVariantLabel')) {
+    function isDefaultVariantLabel($colorName, $sizeName) {
+        return trim((string) $colorName) === 'Default' && trim((string) $sizeName) === 'Default';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -144,6 +154,8 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                             $itemQty          = $qty;
                             $itemOutOfStock   = $itemStock <= 0;
                             $itemExceedsStock = !$itemOutOfStock && $itemQty > $itemStock;
+
+                            $isDefaultVariant = isDefaultVariantLabel($item['colorname'], $item['sizename']);
                             ?>
                             <div class="flex items-center gap-3">
                                 <!-- Thumbnail -->
@@ -163,18 +175,22 @@ include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
                                     <p class="text-xs font-semibold text-gray-800 truncate leading-tight">
                                         <?= htmlspecialchars($item['product_name']) ?>
                                     </p>
-                                    <p class="text-[10px] text-gray-400 mt-0.5 truncate">
-                                        <?= htmlspecialchars($item['colorname']) ?>
-                                        <?php if (!empty($item['sizename'])): ?>
-                                            · <?= htmlspecialchars($item['sizename']) ?>
-                                        <?php endif; ?>
-                                        <?php if ($discount > 0): ?>
-                                            <span class="text-red-400 font-semibold">-<?= $discount ?>%</span>
-                                        <?php endif; ?>
-                                        <?php if ($tierDiscount > 0): ?>
-                                            <span class="text-green-600 font-semibold">-<?= $tierDiscount ?>% qty</span>
-                                        <?php endif; ?>
-                                    </p>
+                                    <?php if (!$isDefaultVariant || $discount > 0 || $tierDiscount > 0): ?>
+                                        <p class="text-[10px] text-gray-400 mt-0.5 truncate">
+                                            <?php if (!$isDefaultVariant): ?>
+                                                <?= htmlspecialchars($item['colorname']) ?>
+                                                <?php if (!empty($item['sizename'])): ?>
+                                                    · <?= htmlspecialchars($item['sizename']) ?>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+                                            <?php if ($discount > 0): ?>
+                                                <span class="text-red-400 font-semibold">-<?= $discount ?>%</span>
+                                            <?php endif; ?>
+                                            <?php if ($tierDiscount > 0): ?>
+                                                <span class="text-green-600 font-semibold">-<?= $tierDiscount ?>% qty</span>
+                                            <?php endif; ?>
+                                        </p>
+                                    <?php endif; ?>
                                     <?php if ($itemOutOfStock): ?>
                                         <p class="text-[10px] text-red-500 font-medium mt-0.5">
                                             <i class="fa-solid fa-circle-exclamation mr-0.5"></i>Out of stock

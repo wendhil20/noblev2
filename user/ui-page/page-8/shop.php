@@ -296,11 +296,11 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
                     </div>
                 </div>
             </div>
-            <div class="mb-4">
+            <div class="mb-4" id="modalColorSection">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Color</p>
                 <div id="modalColorOptions" class="flex flex-wrap gap-2"></div>
             </div>
-            <div class="mb-4">
+            <div class="mb-4" id="modalSizeSection">
                 <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Size</p>
                 <div id="modalSizeOptions" class="flex flex-wrap gap-2">
                     <span class="text-xs text-gray-400">Select a color first</span>
@@ -565,6 +565,20 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
         let currentModalState = { productId: null, colorId: null, variantId: null };
         let modalPromoTimerInterval = null;
 
+        // Simple product detection — kaparehong logic ng isSimpleProduct sa
+        // mainproductview.php: single "Default" color na may single "Default"
+        // variant lang (set ng specialist-insertproduct-handler.php kapag
+        // "Simple product — no colors or sizes" ang checkbox na na-tick).
+        function isSimpleProductData(product) {
+            return !!product
+                && Array.isArray(product.colors)
+                && product.colors.length === 1
+                && product.colors[0].colorname === 'Default'
+                && Array.isArray(product.colors[0].variants)
+                && product.colors[0].variants.length === 1
+                && product.colors[0].variants[0].sizename === 'Default';
+        }
+
         function openAddToCart(productId) {
             const product = PRODUCT_DATA[productId];
             if (!product) return;
@@ -585,11 +599,22 @@ $priceHi = floatval($priceBounds['hi'] ?? 0);
             document.getElementById('modalAddBtn').disabled = true;
             hideModalPromoTimer();
 
+            // Simple product: itago ang Color/Size pickers, auto-select ang
+            // hidden Default/Default variant — kagaya sa mainproductview.php.
+            const simple = isSimpleProductData(product);
+            document.getElementById('modalColorSection')?.classList.toggle('hidden', simple);
+            document.getElementById('modalSizeSection')?.classList.toggle('hidden', simple);
+
             renderColorOptions(product.colors);
 
             const modal = document.getElementById('addToCartModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+
+            if (simple) {
+                selectColor(product.colors[0].id);
+                selectSize(product.colors[0].variants[0].id);
+            }
         }
 
         function closeAddToCartModal() {

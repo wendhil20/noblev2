@@ -45,6 +45,16 @@ if (!empty($colors)) {
 }
 $colors = array_values($colors);
 
+// ─── Detect "simple product" — single color named 'Default' with a single
+// 'Default' variant. Set by specialist-insertproduct-handler.php when the
+// specialist checks "Simple product — no colors or sizes". ────────────────
+$isSimpleProduct = (
+    count($colors) === 1
+    && $colors[0]['colorname'] === 'Default'
+    && count($colors[0]['variants']) === 1
+    && $colors[0]['variants'][0]['sizename'] === 'Default'
+);
+
 // Collect unique size names across all colors (for display)
 $allSizes = [];
 foreach ($colors as $color) {
@@ -382,7 +392,7 @@ if ($isLoggedIn) {
 
                     <?php if (!empty($colors)): ?>
                         <!-- Colors -->
-                        <div class="mb-4 md:mb-5">
+                        <div class="mb-4 md:mb-5" id="color-section">
                             <p
                                 class="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1.5 md:mb-2">
                                 Color <span id="selected-color-label" class="text-amber-600 normal-case font-normal"></span>
@@ -531,7 +541,19 @@ if ($isLoggedIn) {
                 else img.addEventListener('load', () => initZoom(img));
             }
 
-            showDefaultPreview(); // price/stock preview lang — walang selected na color/size
+            if (isSimpleProduct) {
+                // Hide the color/size pickers entirely and auto-select the
+                // single hidden "Default" variant so all existing cart/stock/
+                // discount/promo logic below just works unmodified.
+                document.getElementById('color-section')?.classList.add('hidden');
+                document.getElementById('size-section')?.classList.add('hidden');
+                if (colors.length) {
+                    selectColor(0);
+                    selectSize('Default');
+                }
+            } else {
+                showDefaultPreview(); // price/stock preview lang — walang selected na color/size
+            }
         });
 
         // ─── Display-only preview (WALANG select) ──────────────────────────────
@@ -596,6 +618,7 @@ if ($isLoggedIn) {
         // ───────────────────────────────────────────────────────────────
 
         const colors = <?= json_encode(array_values($colors), JSON_HEX_TAG) ?>;
+        const isSimpleProduct = <?= json_encode($isSimpleProduct) ?>;
         const uploadUrl = <?= json_encode($uploadUrl) ?>;
         const addCartUrl = <?= json_encode(BASE_URL . '/cartadd') ?>;
         const cartVariantQtyUrl = <?= json_encode(BASE_URL . '/cart-variant-qty') ?>;
@@ -648,7 +671,7 @@ if ($isLoggedIn) {
                 // default preview kung wala pang color/size na napili
                 if (selectedColorIndex !== null && selectedSizeName !== null) {
                     resolveVariant();
-                } else if (selectedColorIndex === null) {
+                } else if (selectedColorIndex === null && !isSimpleProduct) {
                     showDefaultPreview();
                 }
                 updateCartBtn();
@@ -916,8 +939,8 @@ if ($isLoggedIn) {
         }
 
         function selectColor(index) {
-            if (selectedColorIndex === index) {
-                // ── UNSELECT COLOR ────────────────────────────────────────────
+            if (selectedColorIndex === index && !isSimpleProduct) {
+                // ── UNSELECT COLOR (not applicable for simple products) ────────
                 document.getElementById('color-btn-' + index).classList.remove('selected');
                 selectedColorIndex = null;
                 selectedColorId = null;
@@ -944,7 +967,7 @@ if ($isLoggedIn) {
 
             // ── SELECT COLOR ────────────────────────────────────────────────
             colors.forEach((_, i) => {
-                document.getElementById('color-btn-' + i).classList.toggle('selected', i === index);
+                document.getElementById('color-btn-' + i)?.classList.toggle('selected', i === index);
             });
 
             selectedColorIndex = index;
@@ -956,8 +979,10 @@ if ($isLoggedIn) {
             clearStockInfo();
             hideQtySection();
             updatePromoTimer(null);                    // ← DAGDAG: itago ang promo timer, walang size pa
-            document.getElementById('selected-color-label').textContent = '— ' + colors[index].colorname;
-            document.getElementById('selected-size-label').textContent = '';
+            const colorLabel = document.getElementById('selected-color-label');
+            if (colorLabel) colorLabel.textContent = '— ' + colors[index].colorname;
+            const sizeLabel = document.getElementById('selected-size-label');
+            if (sizeLabel) sizeLabel.textContent = '';
 
             const color = colors[index];
             if (color.imagecolor) {
@@ -994,8 +1019,8 @@ if ($isLoggedIn) {
             const sizeBtn = document.getElementById('size-btn-' + sizeName);
             if (sizeBtn && sizeBtn.classList.contains('unavailable')) return;
 
-            if (selectedSizeName === sizeName) {
-                document.getElementById('size-btn-' + sizeName).classList.remove('selected');
+            if (selectedSizeName === sizeName && !isSimpleProduct) {
+                document.getElementById('size-btn-' + sizeName)?.classList.remove('selected');
                 selectedSizeName = null;
                 selectedVariantId = null;
                 currentVariantOriginalPrice = 0;
@@ -1024,10 +1049,11 @@ if ($isLoggedIn) {
             }
 
             document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
-            document.getElementById('size-btn-' + sizeName).classList.add('selected');
+            document.getElementById('size-btn-' + sizeName)?.classList.add('selected');
 
             selectedSizeName = sizeName;
-            document.getElementById('selected-size-label').textContent = '— ' + sizeName;
+            const sizeLabel = document.getElementById('selected-size-label');
+            if (sizeLabel) sizeLabel.textContent = '— ' + sizeName;
 
             if (selectedColorIndex !== null) resolveVariant();
 

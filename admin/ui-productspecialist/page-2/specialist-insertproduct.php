@@ -15,6 +15,15 @@ include ROOT_PATH . '/admin/ui-productspecialist/backend/backend-page-2/speciali
 $success = '';
 $error = '';
 
+// ── Flash success message ───────────────────────────────────────────────────
+// After a successful insert we redirect (see below) instead of rendering
+// directly, so the success text has to survive that redirect somehow —
+// we stash it in the session for one read, then clear it.
+if (!empty($_SESSION['flash_success'])) {
+    $success = $_SESSION['flash_success'];
+    unset($_SESSION['flash_success']);
+}
+
 // ── Category AJAX ──────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['category_action'])) {
     include ROOT_PATH . '/admin/ui-productspecialist/backend/backend-page-2/specialist-category-handler.php';
@@ -25,6 +34,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['category_action'])) {
 // ── Product insert ─────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_product'])) {
     include ROOT_PATH . '/admin/ui-productspecialist/backend/backend-page-2/specialist-insertproduct-handler.php';
+
+    if ($success) {
+        // ── Post/Redirect/Get ───────────────────────────────────────────────
+        // Without this, refreshing the page (F5) or navigating back re-sends
+        // the exact same POST body — including submit_product — which runs
+        // the insert handler again and creates a duplicate product.
+        // Redirecting turns the "last request" the browser remembers into a
+        // harmless GET, so refresh no longer resubmits anything.
+        $_SESSION['flash_success'] = $success;
+        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+        exit;
+    }
+    // On error we deliberately do NOT redirect — falling through here keeps
+    // $error set and re-renders the form so the specialist doesn't lose
+    // everything they typed in.
 }
 
 // ── Load categories for dropdown ───────────────────────────────────────────
@@ -186,13 +210,87 @@ $categories = loadCategories($conn);
                                     to <strong>.webp</strong>.</p>
                             </div>
                         </div>
+
+                        <!-- Simple product toggle -->
+                        <div class="col-span-2 pt-2 border-t border-gray-100">
+                            <label class="flex items-center gap-2 cursor-pointer w-fit">
+                                <input type="checkbox" id="simple-product-toggle" name="is_simple_product" value="1"
+                                    onchange="toggleSimpleProduct(this.checked)"
+                                    class="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400">
+                                <span class="text-xs font-medium text-gray-600">
+                                    Simple product — no colors or sizes (e.g. a mouse, single SKU)
+                                </span>
+                            </label>
+
+                            <div id="simple-fields" class="hidden mt-4 space-y-4">
+                                <div class="grid grid-cols-7 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Price (₱)</label>
+                                        <input type="number" name="simple_price" min="0" step="0.01" placeholder="0.00"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Discount (%)</label>
+                                        <input type="number" name="simple_discount" min="0" max="100" step="0.01" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Stock</label>
+                                        <input type="number" name="simple_stock" min="0" step="1" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Width</label>
+                                        <input type="number" name="simple_width" min="0" step="0.01" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Height</label>
+                                        <input type="number" name="simple_height" min="0" step="0.01" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Length</label>
+                                        <input type="number" name="simple_length" min="0" step="0.01" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Unit</label>
+                                        <select name="simple_dimension_unit"
+                                            class="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                            <option value="mm">mm</option>
+                                            <option value="cm">cm</option>
+                                            <option value="m">m</option>
+                                            <option value="inches">inches</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-7 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">Weight</label>
+                                        <input type="number" name="simple_weight" min="0" step="0.01" placeholder="0"
+                                            class="w-full px-2.5 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-1">W. Unit</label>
+                                        <select name="simple_weight_unit"
+                                            class="w-full px-2 py-2 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:border-amber-400 transition">
+                                            <option value="kg">kg</option>
+                                            <option value="g">g</option>
+                                            <option value="lbs">lbs</option>
+                                            <option value="oz">oz</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="flex justify-end">
-                    <button type="button" onclick="goToStep(2)"
+                    <button type="button" onclick="goNextFromStep1()"
                         class="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-lg transition flex items-center gap-2">
-                        Next: Add Colors <i class="fa-solid fa-arrow-right text-xs"></i>
+                        Next <i class="fa-solid fa-arrow-right text-xs"></i>
                     </button>
                 </div>
             </div>
@@ -268,7 +366,7 @@ $categories = loadCategories($conn);
                         Spec" to begin.</p>
                 </div>
                 <div class="flex justify-between">
-                    <button type="button" onclick="goToStep(3)"
+                    <button type="button" onclick="goPrevFromStep4()"
                         class="px-5 py-2.5 border border-gray-200 bg-white text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition flex items-center gap-2">
                         <i class="fa-solid fa-arrow-left text-xs"></i> Back
                     </button>
@@ -425,6 +523,33 @@ $categories = loadCategories($conn);
         const variantCount = {};
         const UNITS = ['mm', 'cm', 'm', 'inches'];
 
+        /* ═══════════════════════════════════════════════════════
+           SIMPLE PRODUCT (no colors / no sizes)
+        ═══════════════════════════════════════════════════════ */
+        let isSimpleProduct = false;
+
+        function toggleSimpleProduct(isChecked) {
+            isSimpleProduct = isChecked;
+            document.getElementById('simple-fields').classList.toggle('hidden', !isChecked);
+
+            if (isChecked) {
+                // clear out any color/variant cards — they won't be submitted/used
+                document.getElementById('color-list').innerHTML = '';
+                colorCount = 0;
+                Object.keys(variantCount).forEach(k => delete variantCount[k]);
+            } else {
+                // restore a default color card if none exist
+                if (!document.querySelectorAll('[id^="color-card-"]').length) addColor();
+            }
+        }
+
+        function goNextFromStep1() {
+            goToStep(isSimpleProduct ? 4 : 2);
+        }
+
+        function goPrevFromStep4() {
+            goToStep(isSimpleProduct ? 1 : 3);
+        }
 
         /* ═══════════════════════════════════════════════════════
            COLORS
@@ -646,6 +771,33 @@ $categories = loadCategories($conn);
                     </div>
                 </div>
             </div>`;
+
+            if (isSimpleProduct) {
+                const price = parseFloat(document.querySelector('[name="simple_price"]')?.value || 0);
+                const stock = parseInt(document.querySelector('[name="simple_stock"]')?.value || 0, 10);
+                const discount = parseFloat(document.querySelector('[name="simple_discount"]')?.value || 0);
+                const width = parseFloat(document.querySelector('[name="simple_width"]')?.value || 0);
+                const height = parseFloat(document.querySelector('[name="simple_height"]')?.value || 0);
+                const length = parseFloat(document.querySelector('[name="simple_length"]')?.value || 0);
+                const dimUnit = document.querySelector('[name="simple_dimension_unit"]')?.value || 'cm';
+                const weight = parseFloat(document.querySelector('[name="simple_weight"]')?.value || 0);
+                const weightUnit = document.querySelector('[name="simple_weight_unit"]')?.value || 'kg';
+                html += `
+                <div class="rounded-lg border border-gray-100 p-4">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Simple Product (no colors/sizes)</p>
+                    <div class="grid grid-cols-3 gap-4 text-xs mb-3">
+                        <p><span class="text-gray-400">Price:</span> <strong>₱${price.toFixed(2)}</strong></p>
+                        <p><span class="text-gray-400">Stock:</span> <strong>${stock}</strong></p>
+                        <p><span class="text-gray-400">Discount:</span> <strong>${discount.toFixed(2)}%</strong></p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <p><span class="text-gray-400">Dimensions (W×H×L):</span> <strong>${width} × ${height} × ${length} ${dimUnit}</strong></p>
+                        <p><span class="text-gray-400">Weight:</span> <strong>${weight.toFixed(2)} ${weightUnit}</strong></p>
+                    </div>
+                </div>`;
+                el.innerHTML = html;
+                return;
+            }
 
             getActiveColorIndices().forEach(ci => {
                 const cName = document.querySelector(`input[name="color_name[${ci}]"]`)?.value || '—';
@@ -972,7 +1124,7 @@ $categories = loadCategories($conn);
             }
 
             currentStep = n;
-            if (n === 3) renderVariantsWrapper();
+            if (n === 3 && !isSimpleProduct) renderVariantsWrapper();
             if (n === 6) renderReview();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }

@@ -1,6 +1,20 @@
 <?php
 // user/ui-page/page-6/orders-list-partial.php
 
+// Simple products (walang totoong color/size) ay naka-store gamit ang
+// placeholder na "Default" color + "Default" size
+// (see specialist-insertproduct-handler.php + cartview.php). Wala itong
+// value sa user kaya pinapalitan na lang natin ng em dash sa order details
+// table, kagaya ng ginagawa na kapag talagang wala/null ang value.
+if (!function_exists('displayVariantValue')) {
+    function displayVariantValue($value) {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '' || $value === 'Default') {
+            return '—';
+        }
+        return htmlspecialchars($value);
+    }
+}
 ?>
 <?php if (empty($orders)): ?>
     <div class="bg-white rounded-lg border border-gray-100 py-12 text-center text-sm text-gray-400">
@@ -98,8 +112,8 @@
                                     <?php foreach ($order['items'] as $item): ?>
                                         <tr>
                                             <td class="py-2 px-3 text-gray-800"><?= htmlspecialchars($item['product_name']) ?></td>
-                                            <td class="py-2 px-3 text-gray-500"><?= htmlspecialchars($item['colorname'] ?? '—') ?></td>
-                                            <td class="py-2 px-3 text-gray-500"><?= htmlspecialchars($item['sizename'] ?? '—') ?></td>
+                                            <td class="py-2 px-3 text-gray-500"><?= displayVariantValue($item['colorname'] ?? null) ?></td>
+                                            <td class="py-2 px-3 text-gray-500"><?= displayVariantValue($item['sizename'] ?? null) ?></td>
                                             <td class="py-2 px-3 text-center text-gray-500"><?= (int) $item['quantity'] ?></td>
                                             <td class="py-2 px-3 text-right text-gray-500 tabular-nums">₱<?= number_format($item['unit_price'], 2) ?></td>
                                             <td class="py-2 px-3 text-right font-medium text-gray-900 tabular-nums">₱<?= number_format($item['line_total'], 2) ?></td>
