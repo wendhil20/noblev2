@@ -234,6 +234,7 @@ $routes = [
     'checkoutcancel'                       => 'user/ui-page/backend/backend-page-5/checkout-cancel.php',
     'checkqrph'                            => 'user/ui-page/backend/backend-page-5/check-qrph.php',
     'createqrph'                           => 'user/ui-page/backend/backend-page-5/create-qrph.php',
+    'cron'                                 => 'user/ui-page/backend/backend-page-5/cron/expire-pending-orders.php',
 
     // pages 6
     'orders'                               => 'user/ui-page/page-6/orders.php',

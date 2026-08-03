@@ -6,10 +6,7 @@ include ROOT_PATH . '/admin/authentication/index-roles.php';
 $userId = intval($_SESSION['user_id']);
 
 // ── Localhost bypass: manually process pending order ─────────────────────────
-$isLocalhost = (
-    strpos($_SERVER['HTTP_HOST'], 'localhost') !== false ||
-    strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false
-);
+$isLocalhost = false;
 
 if ($isLocalhost) {
     // Find the latest unused pending order for this user

@@ -15,9 +15,8 @@ while ($row = $psResult->fetch_assoc())
 <?php if (!empty($promoSites)): ?>
     <div class="mb-6 space-y-3 md:space-y-4 py-5">
         <?php foreach ($promoSites as $site): ?>
-            <a href="<?= htmlspecialchars($site['website_link']) ?>" target="_blank" rel="noopener"
-                class="relative w-full rounded-lg overflow-hidden shadow-sm bg-slate-800
-                   aspect-[16/5] block group">
+            <a href="<?= htmlspecialchars($site['website_link']) ?>" target="_blank" rel="noopener" class="relative w-full rounded-lg overflow-hidden shadow-sm bg-slate-800
+                   aspect-16/5 block group">
 
                 <?php if (!empty($site['image'])): ?>
                     <img src="<?= BASE_URL ?>/uploads/promotionwebsite/<?= htmlspecialchars($site['image']) ?>"
@@ -27,7 +26,7 @@ while ($row = $psResult->fetch_assoc())
 
                 <!-- Gradient overlay + text -->
                 <div class="absolute inset-0 flex flex-col justify-end
-                        bg-gradient-to-t from-black/70 via-black/20 to-transparent
+                        bg-linear-to-t from-black/70 via-black/20 to-transparent
                         px-4 md:px-14 pb-3 md:pb-8">
                     <p class="text-white font-bold text-[11px] md:text-3xl leading-snug drop-shadow-lg line-clamp-1">
                         <?= htmlspecialchars($site['name']) ?>

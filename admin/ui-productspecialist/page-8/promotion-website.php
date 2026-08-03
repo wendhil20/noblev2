@@ -56,7 +56,7 @@ function saveImageAsWebp($tmpPath, $destDir, $filenamePrefix, $maxWidth = 1200, 
         imagealphablending($resized, false);
         imagesavealpha($resized, true);
         imagecopyresampled($resized, $src, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
-        
+
         $src = $resized;
     }
 
@@ -67,7 +67,7 @@ function saveImageAsWebp($tmpPath, $destDir, $filenamePrefix, $maxWidth = 1200, 
     $destPath = $destDir . $filename;
 
     $saved = imagewebp($src, $destPath, $quality);
-   
+
 
     if (!$saved) {
         return ['error' => 'Failed to save image.'];
@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Edit existing
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit') {
-    $id   = intval($_POST['id'] ?? 0);
+    $id = intval($_POST['id'] ?? 0);
     $name = trim($_POST['name'] ?? '');
     $link = trim($_POST['website_link'] ?? '');
 
@@ -198,15 +198,16 @@ while ($row = $result->fetch_assoc())
                         <?php foreach ($sites as $s): ?>
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3">
-    <?php if (!empty($s['image'])): ?>
-        <img src="<?= BASE_URL ?>/uploads/promotionwebsite/<?= htmlspecialchars($s['image']) ?>"
-            class="w-10 h-10 object-cover rounded-lg border border-gray-100">
-    <?php else: ?>
-        <div class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-300">
-            <i class="fa-solid fa-image"></i>
-        </div>
-    <?php endif; ?>
-</td>
+                                    <?php if (!empty($s['image'])): ?>
+                                        <img src="<?= BASE_URL ?>/uploads/promotionwebsite/<?= htmlspecialchars($s['image']) ?>"
+                                            class="w-10 h-10 object-cover rounded-lg border border-gray-100">
+                                    <?php else: ?>
+                                        <div
+                                            class="w-10 h-10 flex items-center justify-center bg-gray-100 rounded-lg text-gray-300">
+                                            <i class="fa-solid fa-image"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="px-4 py-3 font-semibold text-gray-800"><?= htmlspecialchars($s['name']) ?></td>
                                 <td class="px-4 py-3 text-blue-600 truncate max-w-xs">
                                     <a href="<?= htmlspecialchars($s['website_link']) ?>" target="_blank" rel="noopener">
@@ -222,8 +223,7 @@ while ($row = $result->fetch_assoc())
                                 </td>
                                 <td class="px-4 py-3 text-gray-400"><?= htmlspecialchars($s['created_at']) ?></td>
                                 <td class="px-4 py-3 text-right space-x-2">
-                                    <button
-                                        onclick='openEdit(<?= json_encode($s) ?>)'
+                                    <button onclick='openEdit(<?= json_encode($s) ?>)'
                                         class="text-gray-500 hover:text-amber-600">
                                         <i class="fa-solid fa-pen"></i>
                                     </button>
@@ -287,7 +287,8 @@ while ($row = $result->fetch_assoc())
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 mb-3 mt-1 text-sm">
 
                 <label class="text-xs font-semibold text-gray-500">Image (leave blank to keep current)</label>
-                <img id="edit_image_preview" src="" class="w-14 h-14 object-cover rounded-lg border border-gray-100 my-2 hidden">
+                <img id="edit_image_preview" src=""
+                    class="w-14 h-14 object-cover rounded-lg border border-gray-100 my-2 hidden">
                 <input type="file" name="image" accept="image/*"
                     class="w-full border border-gray-200 rounded-lg px-3 py-2 mb-4 mt-1 text-sm">
 

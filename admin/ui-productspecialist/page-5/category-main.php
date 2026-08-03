@@ -52,9 +52,9 @@ $categories = $result->fetch_all(MYSQLI_ASSOC);
 
                             <?php if (!empty($cat['image'])): ?>
                                 <img src="<?= htmlspecialchars($cat['image']) ?>"
-                                    class="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0">
+                                    class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0">
                             <?php else: ?>
-                                <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <div class="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
                                     <i class="fa-solid fa-layer-group text-amber-500 text-sm"></i>
                                 </div>
                             <?php endif; ?>
@@ -99,9 +99,9 @@ $categories = $result->fetch_all(MYSQLI_ASSOC);
 
                                     <?php if (!empty($sub['image'])): ?>
                                         <img src="<?= htmlspecialchars($sub['image']) ?>"
-                                            class="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0">
+                                            class="w-8 h-8 rounded-lg object-cover border border-slate-200 shrink-0">
                                     <?php else: ?>
-                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                        <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
                                             <i class="fa-solid fa-image text-slate-300 text-xs"></i>
                                         </div>
                                     <?php endif; ?>

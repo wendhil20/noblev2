@@ -4,7 +4,8 @@
 
 // Avoid redeclare error if this helper is already defined by another included file
 if (!function_exists('formatSoldCount')) {
-    function formatSoldCount($n) {
+    function formatSoldCount($n)
+    {
         $n = intval($n);
         if ($n >= 1000) {
             return rtrim(rtrim(number_format($n / 1000, 1), '0'), '.') . 'K';
@@ -68,7 +69,7 @@ if (isset($_SESSION['user_id'])) {
             <h2 class="text-xs md:text-lg font-bold text-gray-900 whitespace-nowrap">
                 DISCOUNTED<span class="text-amber-500"> ITEMS</span>
             </h2>
-           <span class="h-px w-16 md:w-32 bg-gradient-to-r from-amber-300 to-transparent"></span>
+            <span class="h-px w-16 md:w-32 bg-linear-to-r from-amber-300 to-transparent"></span>
         </div>
     </div>
 
@@ -96,22 +97,16 @@ if (isset($_SESSION['user_id'])) {
 
         <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
         <div class="overflow-hidden px-1 p-2">
-            <div id="discountTrack"
-                class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1">
+            <div id="discountTrack" class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
+                       [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden p-1">
                 <?php foreach ($discountedProducts as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class="group rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative snap-start
                       w-[calc(50%-4px)] sm:w-[calc(33.333%-6px)] lg:w-[calc(25%-9px)] hover:text-amber-500">
 
-                        <!-- Discount badge -->
-                        <span
-                            class="absolute top-2 left-2 z-10 bg-red-500 text-white text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded-md shadow">
-                            -<?= rtrim(rtrim(number_format($p['max_discount'], 2), '0'), '.') ?>%
-                        </span>
-
                         <!-- Image -->
-                        <div class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
+                        <div
+                            class="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-2 md:p-4">
                             <?php if (!empty($p['imageproduct'])): ?>
                                 <img src="<?= $uploadUrl . htmlspecialchars($p['imageproduct']) ?>"
                                     alt="<?= htmlspecialchars($p['name']) ?>" class="w-full h-full object-contain" loading="lazy">
@@ -122,27 +117,23 @@ if (isset($_SESSION['user_id'])) {
                             <?php endif; ?>
 
                             <!-- Save / Bookmark button -->
-                            <button type="button"
-                                class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
-                                       w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90 shadow
-                                       flex items-center justify-center
-                                       opacity-100 md:opacity-0 md:group-hover:opacity-100
-                                       transition-opacity duration-200"
-                                data-product-id="<?= $p['id'] ?>"
+                            <button type="button" class="save-btn absolute top-2 right-2 z-20
+                                       hidden md:flex md:w-10 md:h-10 rounded-full bg-white/90 shadow
+                                       items-center justify-center
+                                       md:opacity-0 md:group-hover:opacity-100
+                                       transition-opacity duration-200" data-product-id="<?= $p['id'] ?>"
                                 aria-label="Save to favorites">
-                                <i class="<?= in_array($p['id'], $discSavedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-lg"></i>
+                                <i
+                                    class="<?= in_array($p['id'], $discSavedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-lg"></i>
                             </button>
 
                             <!-- Share button -->
-                            <button type="button"
-                                class="share-btn absolute top-11 right-1.5 md:top-14 md:right-2 z-10
-                                       w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90 shadow
-                                       flex items-center justify-center
-                                       opacity-100 md:opacity-0 md:group-hover:opacity-100
-                                       transition-opacity duration-200"
-                                data-product-id="<?= $p['id'] ?>"
-                                data-product-name="<?= htmlspecialchars($p['name']) ?>"
-                                aria-label="Share product">
+                            <button type="button" class="share-btn absolute top-14 right-2 z-20
+                                       hidden md:flex md:w-10 md:h-10 rounded-full bg-white/90 shadow
+                                       items-center justify-center
+                                       md:opacity-0 md:group-hover:opacity-100
+                                       transition-opacity duration-200" data-product-id="<?= $p['id'] ?>"
+                                data-product-name="<?= htmlspecialchars($p['name']) ?>" aria-label="Share product">
                                 <i class="fa-solid fa-share-nodes text-orange-500 text-sm md:text-base"></i>
                             </button>
                         </div>
@@ -181,7 +172,7 @@ if (isset($_SESSION['user_id'])) {
                                 <?php endif; ?>
                             </div>
 
-                            <!-- Price: original (strikethrough) + discounted -->
+                            <!-- Price: original (strikethrough) + discounted + discount badge -->
                             <div class="mt-1 md:mt-2 flex items-baseline gap-1.5 flex-wrap">
                                 <span class="text-[10px] md:text-sm font-semibold text-red-500">
                                     ₱<?= number_format($p['min_discounted_price'], 2) ?>
@@ -192,6 +183,10 @@ if (isset($_SESSION['user_id'])) {
                                 <span class="text-[9px] md:text-xs text-gray-400 line-through">
                                     ₱<?= number_format($p['min_price'], 2) ?>
                                     <?= $p['min_price'] !== $p['max_price'] ? ' – ₱' . number_format($p['max_price'], 2) : '' ?>
+                                </span>
+                                <span
+                                    class="bg-red-500 text-white text-[9px] md:text-xs font-bold px-1.5 py-0.5 rounded-md leading-none">
+                                    -<?= rtrim(rtrim(number_format($p['max_discount'], 2), '0'), '.') ?>%
                                 </span>
                             </div>
                         </div>
@@ -258,21 +253,21 @@ if (isset($_SESSION['user_id'])) {
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: 'product_id=' + encodeURIComponent(productId)
                 })
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.success) {
-                        alert(data.message || 'May error, subukan ulit.');
-                        return;
-                    }
-                    if (data.saved) {
-                        icon.classList.remove('fa-regular', 'text-gray-500');
-                        icon.classList.add('fa-solid', 'text-red-500');
-                    } else {
-                        icon.classList.remove('fa-solid', 'text-red-500');
-                        icon.classList.add('fa-regular', 'text-gray-500');
-                    }
-                })
-                .catch(() => alert('May error, subukan ulit.'));
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert(data.message || 'May error, subukan ulit.');
+                            return;
+                        }
+                        if (data.saved) {
+                            icon.classList.remove('fa-regular', 'text-gray-500');
+                            icon.classList.add('fa-solid', 'text-red-500');
+                        } else {
+                            icon.classList.remove('fa-solid', 'text-red-500');
+                            icon.classList.add('fa-regular', 'text-gray-500');
+                        }
+                    })
+                    .catch(() => alert('May error, subukan ulit.'));
             });
         });
 
@@ -291,7 +286,7 @@ if (isset($_SESSION['user_id'])) {
                         title: productName,
                         text: 'Check out ' + productName,
                         url: shareUrl
-                    }).catch(() => {}); // user cancelled, ignore
+                    }).catch(() => { }); // user cancelled, ignore
                 } else {
                     navigator.clipboard.writeText(shareUrl)
                         .then(() => {

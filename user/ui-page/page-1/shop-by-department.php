@@ -49,21 +49,19 @@ while ($row = $deptResult->fetch_assoc())
 
             <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
             <div class="overflow-hidden px-1 p-2">
-                <div id="deptTrack"
-                     class="flex gap-4 md:gap-8 overflow-x-auto scroll-smooth snap-x snap-mandatory
+                <div id="deptTrack" class="flex gap-4 md:gap-8 overflow-x-auto scroll-smooth snap-x snap-mandatory
                             [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <?php foreach ($departments as $dept): ?>
-                        <a href="<?= BASE_URL ?>/productcategory?id=<?= $dept['id'] ?>"
-                           class="flex flex-col items-center gap-2 shrink-0 snap-start
+                        <a href="<?= BASE_URL ?>/productcategory?id=<?= $dept['id'] ?>" class="flex flex-col items-center gap-2 shrink-0 snap-start
                                   w-[calc(25%-12px)] sm:w-[calc(16.666%-14px)] lg:w-28 group">
 
-                            <div class="w-16 h-16 md:w-24 md:h-24 rounded-full
+                            <div
+                                class="w-16 h-16 md:w-24 md:h-24 rounded-full
                                         flex items-center justify-center overflow-hidden bg-white
                                         group-hover:border-amber-500 group-hover:shadow-md transition-all duration-200 p-2 md:p-3 shrink-0">
                                 <?php if (!empty($dept['image'])): ?>
                                     <img src="<?= BASE_URL . '/' . htmlspecialchars($dept['image']) ?>"
-                                         alt="<?= htmlspecialchars($dept['name']) ?>"
-                                         class="w-full h-full object-contain" >
+                                        alt="<?= htmlspecialchars($dept['name']) ?>" class="w-full h-full object-contain">
                                 <?php else: ?>
                                     <div class="w-full h-full flex items-center justify-center text-gray-300">
                                         <i class="fa-solid fa-layer-group text-xl md:text-3xl"></i>
@@ -74,7 +72,7 @@ while ($row = $deptResult->fetch_assoc())
                             <span class="w-full block px-0.5 text-[10px] md:text-xs font-semibold text-gray-800
                                          text-center uppercase tracking-wide leading-tight
                                          break-words line-clamp-2 min-h-[2em] md:min-h-[2.2em]"
-                                  title="<?= htmlspecialchars($dept['name']) ?>">
+                                title="<?= htmlspecialchars($dept['name']) ?>">
                                 <?= htmlspecialchars($dept['name']) ?>
                             </span>
                         </a>

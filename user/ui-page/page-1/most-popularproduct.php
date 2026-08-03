@@ -61,7 +61,7 @@ function formatSoldCount($n)
         <h2 class="text-sm md:text-xl font-bold text-gray-900 whitespace-nowrap">
             MOST <span class="text-amber-500">POPULAR ITEM</span>
         </h2>
-        <span class="h-px flex-1 max-w-[120px] md:max-w-[220px] bg-gradient-to-r from-amber-300 to-transparent"></span>
+        <span class="h-px flex-1 max-w-30 md:max-w-55 bg-linear-to-r from-amber-300 to-transparent"></span>
     </div>
 </div>
 
@@ -98,7 +98,7 @@ function formatSoldCount($n)
         <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
         <div class="overflow-hidden px-1 p-2">
             <div id="productTrack" class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1 ">
+                       [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden p-1 ">
                 <?php foreach ($products as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
                         aria-label="View details for <?= htmlspecialchars($p['name']) ?>" class="group relative rounded-xl md:rounded-2xl overflow-hidden 
@@ -117,18 +117,20 @@ function formatSoldCount($n)
                                 </div>
                             <?php endif; ?>
 
-                            <button type="button" class="save-btn absolute top-1.5 right-1.5 md:top-2 md:right-2 z-10
-                                   w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90
-                                   flex items-center justify-center" data-product-id="<?= $p['id'] ?>"
+                            <button type="button" class="save-btn absolute top-2 right-2 z-20
+                                   hidden md:flex md:w-10 md:h-10 rounded-full bg-white/90
+                                   items-center justify-center
+                                   md:opacity-0 md:group-hover:opacity-100
+                                   transition-opacity duration-200" data-product-id="<?= $p['id'] ?>"
                                 aria-label="Save to favorites">
                                 <i
                                     class="<?= in_array($p['id'], $savedIds) ? 'fa-solid text-red-500' : 'fa-regular text-orange-400' ?> fa-heart text-sm md:text-lg"></i>
                             </button>
 
-                            <button type="button" class="share-btn absolute top-11 right-1.5 md:top-14 md:right-2 z-10
-                                   w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/90
-                                   flex items-center justify-center
-                                   opacity-100 md:opacity-0 md:group-hover:opacity-100
+                            <button type="button" class="share-btn absolute top-14 right-2 z-20
+                                   hidden md:flex md:w-10 md:h-10 rounded-full bg-white/90
+                                   items-center justify-center
+                                   md:opacity-0 md:group-hover:opacity-100
                                    transition-opacity duration-200" data-product-id="<?= $p['id'] ?>"
                                 data-product-name="<?= htmlspecialchars($p['name']) ?>" aria-label="Share product">
                                 <i class="fa-solid fa-share-nodes text-orange-400 text-sm md:text-lg"></i>

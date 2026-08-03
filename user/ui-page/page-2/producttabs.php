@@ -75,7 +75,8 @@ $gallery = !empty($product['gallery']) ? json_decode($product['gallery'], true) 
                     <p class="text-3xl md:text-4xl font-bold text-gray-900"><?= number_format($avgRating, 1) ?></p>
                     <div class="flex items-center justify-center gap-0.5 mt-1">
                         <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <i class="fa-star text-sm <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                            <i
+                                class="fa-star text-sm <?= $i <= round($avgRating) ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
                         <?php endfor; ?>
                     </div>
                     <p class="text-xs text-gray-400 mt-1"><?= $totalReviews ?>
@@ -116,7 +117,8 @@ $gallery = !empty($product['gallery']) ? json_decode($product['gallery'], true) 
                             </div>
                             <div class="flex items-center gap-0.5 mt-0.5 mb-1.5">
                                 <?php for ($i = 1; $i <= 5; $i++): ?>
-                                    <i class="fa-star text-xs <?= $i <= (int) $r['rating'] ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
+                                    <i
+                                        class="fa-star text-xs <?= $i <= (int) $r['rating'] ? 'fa-solid text-amber-400' : 'fa-regular text-gray-300' ?>"></i>
                                 <?php endfor; ?>
                             </div>
                             <?php if (!empty($r['comment'])): ?>

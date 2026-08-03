@@ -15,12 +15,15 @@ while ($sub = $sub_result->fetch_assoc()) {
     }
 }
 
-// Pull products WITH price + a color/tag so the preview cards can match the shop grid look
+// Pull products WITH price + discount so the preview cards can match the shop grid look
 $prod_result = $conn->query("
     SELECT
         p.id, p.name, p.imageproduct, p.description, ps.subcategory_id,
         MIN(v.pricesize) AS min_price,
-        MAX(v.pricesize) AS max_price
+        MAX(v.pricesize) AS max_price,
+        MAX(v.discountvariant) AS max_discount,
+        MIN(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS min_discounted_price,
+        MAX(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS max_discounted_price
     FROM nobleproduct p
     INNER JOIN nobleproduct_subcategory ps ON ps.product_id = p.id
     LEFT JOIN nobleproductcolor c ON c.product_id = p.id
@@ -38,7 +41,6 @@ while ($prod = $prod_result->fetch_assoc()) {
     }
     unset($cat);
 }
-
 
 ?>
 
@@ -58,7 +60,7 @@ while ($prod = $prod_result->fetch_assoc()) {
     <div class="fixed left-0 right-0 top-16 bg-white border-t border-gray-200 shadow-xl
                 opacity-0 invisible group-hover:opacity-100 group-hover:visible
                 transition-all duration-200 z-50">
-        <div class="max-w-screen-xl mx-auto px-6 py-6 relative" id="dropdown-inner">
+        <div class="max-w-7xl mx-auto px-6 py-6 relative" id="dropdown-inner">
 
             <div class="grid gap-8 relative z-40" id="categories-grid"
                 style="grid-template-columns: repeat(<?= min(count($categories), 5) ?>, minmax(140px, 1fr));">
@@ -76,7 +78,7 @@ while ($prod = $prod_result->fetch_assoc()) {
                                 <li>
                                     <div class="subcategory-row w-full flex items-center justify-between gap-1 rounded-md
                                                 hover:bg-orange-50 transition-colors duration-150">
-                                        <a href="<?= BASE_URL ?>/productcategory?id=<?= $cid ?>&sub=<?= $sid ?>" class="subcategory-link flex-1 text-sm font-medium text-gray-700
+                                        <a href="<?= BASE_URL ?>/productcategory?id=<?= $cid ?>&sub=<?= $sid ?>" class="subcategory-link flex-1 text-sm font-medium text-gray-500
                                                   hover:text-orange-500 py-1.5 px-2 transition-colors duration-150">
                                             <?= htmlspecialchars($sub['name']) ?>
                                         </a>
@@ -98,14 +100,28 @@ while ($prod = $prod_result->fetch_assoc()) {
                                             <?php foreach ($sub['products'] as $prod):
                                                 $min = floatval($prod['min_price'] ?? 0);
                                                 $max = floatval($prod['max_price'] ?? 0);
+                                                $isSale = !empty($prod['max_discount']) && $prod['max_discount'] > 0;
+
                                                 $priceLabel = ($min > 0 || $max > 0)
                                                     ? '₱' . number_format($min, 2) . ($min !== $max ? ' – ₱' . number_format($max, 2) : '')
                                                     : '';
+
+                                                $discountedPriceLabel = '';
+                                                $discountPercentLabel = '';
+                                                if ($isSale) {
+                                                    $dMin = floatval($prod['min_discounted_price'] ?? 0);
+                                                    $dMax = floatval($prod['max_discounted_price'] ?? 0);
+                                                    $discountedPriceLabel = '₱' . number_format($dMin, 2) . ($dMin !== $dMax ? ' – ₱' . number_format($dMax, 2) : '');
+                                                    $discountPercentLabel = rtrim(rtrim(number_format($prod['max_discount'], 2), '0'), '.');
+                                                }
                                                 ?>
                                                 <a href="<?= BASE_URL ?>/mainproductview/<?= $prod['id'] ?>"
                                                     class="preview-product-item" data-name="<?= htmlspecialchars($prod['name']) ?>"
                                                     data-desc="<?= htmlspecialchars($prod['description'] ?? '') ?>"
                                                     data-price="<?= htmlspecialchars($priceLabel) ?>"
+                                                    data-sale="<?= $isSale ? '1' : '0' ?>"
+                                                    data-discounted-price="<?= htmlspecialchars($discountedPriceLabel) ?>"
+                                                    data-discount-percent="<?= htmlspecialchars($discountPercentLabel) ?>"
                                                     data-img="<?= !empty($prod['imageproduct']) ? BASE_URL . '/uploads/' . htmlspecialchars($prod['imageproduct']) : '' ?>">
                                                 </a>
                                             <?php endforeach; ?>
@@ -165,12 +181,28 @@ while ($prod = $prod_result->fetch_assoc()) {
         const price = item.dataset.price;
         const img = item.dataset.img;
         const href = item.getAttribute('href');
+        const isSale = item.dataset.sale === '1';
+        const discountedPrice = item.dataset.discountedPrice;
+        const discountPercent = item.dataset.discountPercent;
 
         const card = document.createElement('a');
         card.href = href;
-        card.className = 'bg-white rounded-xl overflow-hidden border border-gray-100 block hover:shadow-md transition-shadow duration-200';
+        card.className = 'bg-white rounded-xl overflow-hidden border border-gray-100 block hover:shadow-md transition-shadow duration-200 relative';
+
+        const priceHtml = isSale && discountedPrice
+            ? `<div class="flex items-baseline gap-1 flex-wrap">
+                 <span class="text-xs font-semibold text-red-500">${discountedPrice}</span>
+                 <span class="text-[10px] text-gray-400 line-through">${price}</span>
+               </div>`
+            : (price
+                ? `<span class="text-xs font-semibold text-gray-800">${price}</span>`
+                : `<span class="text-[11px] text-gray-400 italic">Price not set</span>`);
 
         card.innerHTML = `
+        ${isSale
+                ? `<span class="absolute top-1.5 left-1.5 z-10 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow">-${discountPercent}%</span>`
+                : ''
+            }
         <div class="h-32 overflow-hidden bg-gray-50 flex items-center justify-center p-2.5">
             ${img
                 ? `<img src="${img}" alt="${name}" class="max-h-full max-w-full object-contain" onerror="this.style.display='none'">`
@@ -181,10 +213,7 @@ while ($prod = $prod_result->fetch_assoc()) {
             <h4 class="font-bold text-gray-900 text-xs uppercase tracking-wide leading-snug line-clamp-1">${name}</h4>
             ${desc ? `<p class="text-[11px] text-gray-400 line-clamp-1 mt-0.5">${desc}</p>` : ''}
             <div class="mt-1.5">
-                ${price
-                ? `<span class="text-xs font-semibold text-gray-800">${price}</span>`
-                : `<span class="text-[11px] text-gray-400 italic">Price not set</span>`
-            }
+                ${priceHtml}
             </div>
         </div>
     `;
@@ -222,9 +251,15 @@ while ($prod = $prod_result->fetch_assoc()) {
 
         previewPanel.innerHTML = '';
         const items = target.querySelectorAll('.preview-product-item');
-        Array.from(items).slice(0, 4).forEach(item => {
-            previewPanel.appendChild(renderProductCard(item));
-        });
+        // Recommended = non-sale items lang, para hiwalay sa discounted-items carousel
+        const nonSaleItems = Array.from(items).filter(item => item.dataset.sale !== '1');
+        if (nonSaleItems.length === 0) {
+            previewPanel.innerHTML = `<p class="col-span-full text-xs text-gray-400 italic py-4 text-center">No regular-priced items to show.</p>`;
+        } else {
+            nonSaleItems.slice(0, 4).forEach(item => {
+                previewPanel.appendChild(renderProductCard(item));
+            });
+        }
         const viewAllLink = document.getElementById('sub-preview-viewall');
         if (viewAllLink && btn.dataset.catid && btn.dataset.subid) {
             viewAllLink.href = '<?= BASE_URL ?>/productcategory?id=' + btn.dataset.catid + '&sub=' + btn.dataset.subid;

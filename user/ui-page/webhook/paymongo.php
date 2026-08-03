@@ -98,28 +98,20 @@ $nhccReference = 'NHCC-' . $year . '-' . str_pad($lastNum + 1, 3, '0', STR_PAD_L
 // ── Transaction ───────────────────────────────────────────────────────────────
 $conn->begin_transaction();
 try {
-    // ── 1. Reserve stock + increment sold count ──────────────────────────────
-    $stockStmt = $conn->prepare("
-        UPDATE nobleproductvariant
-        SET stock = stock - ?, sold = sold + ?
-        WHERE id = ? AND stock >= ?
-    ");
-    if (!$stockStmt) {
-        throw new \RuntimeException('Prepare failed (stock update): ' . $conn->error);
+    // ── 1. Finalize sale — stock was ALREADY reserved (deducted) when the
+    //       pending order / checkout session was created. Here we just
+    //       increment the `sold` counter for reporting.
+    $soldStmt = $conn->prepare("UPDATE nobleproductvariant SET sold = sold + ? WHERE id = ?");
+    if (!$soldStmt) {
+        throw new \RuntimeException('Prepare failed (sold update): ' . $conn->error);
     }
     foreach ($cartItems as $item) {
         $vId = intval($item['variant_id']);
         $qty = intval($item['quantity']);
-        $stockStmt->bind_param("iiii", $qty, $qty, $vId, $qty);
-        $stockStmt->execute();
-        if ($stockStmt->affected_rows === 0) {
-            $conn->rollback();
-            error_log("PayMongo webhook: out of stock for variant $vId, pending order $pendingOrderId");
-            http_response_code(200);
-            exit('Out of stock for variant ' . $vId);
-        }
+        $soldStmt->bind_param("ii", $qty, $vId);
+        $soldStmt->execute();
     }
-    $stockStmt->close();
+    $soldStmt->close();
 
     // ── 2. Insert order ───────────────────────────────────────────────────────
     $ins = $conn->prepare("
@@ -168,31 +160,31 @@ try {
     $bPayMethod   = $paymentMethod;
 
     $ins->bind_param(
-    "sisssissssddsisddddddds",
-    $bNhcc,        // s
-    $bUserId,      // i
-    $bCname,       // s
-    $bCemail,      // s
-    $bCphone,      // s
-    $bAddrId,      // i  ← dati 's'
-    $bAddrFull,    // s  ← dati 'i'
-    $bAddrBgy,     // s
-    $bAddrCity,    // s
-    $bAddrPostal,  // s
-    $bAddrLat,     // d  ← dati 's'
-    $bAddrLng,     // d
-    $bMethod,      // s  ← dati 'd' (ito yung pinaka-sira, kasi 'pickup'/'delivery' string 'to, hindi numero)
-    $bTruckId,     // i  ← dati 's'
-    $bTruckName,   // s  ← dati 'i'
-    $bTruckVol,    // d  ← dati 's'
-    $bTruckWt,     // d
-    $bDistKm,      // d
-    $bDelivFee,    // d
-    $bSubtotal,    // d
-    $bVat,         // d
-    $bGrand,       // d
-    $bPayMethod    // s
-);
+        "sisssissssddsisddddddds",
+        $bNhcc,
+        $bUserId,
+        $bCname,
+        $bCemail,
+        $bCphone,
+        $bAddrId,
+        $bAddrFull,
+        $bAddrBgy,
+        $bAddrCity,
+        $bAddrPostal,
+        $bAddrLat,
+        $bAddrLng,
+        $bMethod,
+        $bTruckId,
+        $bTruckName,
+        $bTruckVol,
+        $bTruckWt,
+        $bDistKm,
+        $bDelivFee,
+        $bSubtotal,
+        $bVat,
+        $bGrand,
+        $bPayMethod
+    );
 
     if (!$ins->execute()) {
         throw new \RuntimeException('Execute failed (noblepaidproductlist insert): ' . $ins->error);
@@ -248,13 +240,16 @@ try {
     // ── 4. Clear cart ─────────────────────────────────────────────────────────
     $conn->query("DELETE FROM noblecart WHERE user_id = " . intval($userId));
 
-    // ── 5. Mark pending order as used ─────────────────────────────────────────
+    // ── 5. Mark pending order as used + release the reservation flag ──────────
+    //       (stock_reserved = 0 because it's now "consumed" into a real sale,
+    //        not because stock was restored)
     $conn->query("
         UPDATE noblependingorder
         SET used = 1,
             order_id = " . intval($orderId) . ",
             payment_status = 'paid',
-            final_order_id = " . intval($orderId) . "
+            final_order_id = " . intval($orderId) . ",
+            stock_reserved = 0
         WHERE id = " . intval($pending['id'])
     );
 

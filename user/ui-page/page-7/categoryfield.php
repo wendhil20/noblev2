@@ -48,8 +48,9 @@ if (!array_key_exists($sort, $sortOptions))
 
 $minPrice = (isset($_GET['minp']) && $_GET['minp'] !== '') ? floatval($_GET['minp']) : null;
 $maxPrice = (isset($_GET['maxp']) && $_GET['maxp'] !== '') ? floatval($_GET['maxp']) : null;
+$saleOnly = isset($_GET['sale']) && $_GET['sale'] === '1';
 
-$hasActiveFilters = $minPrice !== null || $maxPrice !== null || $sort !== 'newest';
+$hasActiveFilters = $minPrice !== null || $maxPrice !== null || $sort !== 'newest' || $saleOnly;
 
 // ── 4b. Pagination inputs ────────────────────────────────────────────────────
 $perPage = 8;
@@ -62,7 +63,10 @@ $offset = ($currentPage - 1) * $perPage;
 $baseSql = "SELECT
             p.id, p.name, p.imageproduct, p.description, p.created_at,
             MIN(v.pricesize) AS min_price,
-            MAX(v.pricesize) AS max_price
+            MAX(v.pricesize) AS max_price,
+            MAX(v.discountvariant) AS max_discount,
+            MIN(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS min_discounted_price,
+            MAX(v.pricesize - (v.pricesize * v.discountvariant / 100)) AS max_discounted_price
         FROM nobleproduct p
         INNER JOIN nobleproduct_subcategory ps ON ps.product_id = p.id";
 
@@ -89,6 +93,9 @@ if ($maxPrice !== null) {
     $having[] = "MIN(v.pricesize) <= ?";
     $types .= "d";
     $params[] = $maxPrice;
+}
+if ($saleOnly) {
+    $having[] = "MAX(v.discountvariant) > 0";
 }
 if ($having)
     $baseSql .= " HAVING " . implode(" AND ", $having);
@@ -132,6 +139,7 @@ function buildUrl(array $overrides = [], bool $resetPage = true): string
         'sort' => $_GET['sort'] ?? '',
         'minp' => $_GET['minp'] ?? '',
         'maxp' => $_GET['maxp'] ?? '',
+        'sale' => $_GET['sale'] ?? '',
         'page' => $_GET['page'] ?? '',
     ];
     $merged = array_merge($base, $overrides);
@@ -262,6 +270,16 @@ $sortLabels = [
             </p>
 
             <div class="flex items-center gap-2">
+                <!-- Sale toggle -->
+                <a href="<?= buildUrl(['sale' => $saleOnly ? '' : '1']) ?>"
+                    class="flex items-center justify-center gap-1.5 text-sm font-medium rounded-lg px-3.5 py-2.5 sm:py-2 border transition-colors
+                           <?= $saleOnly
+                               ? 'bg-red-500 border-red-500 text-white hover:bg-red-600'
+                               : 'bg-white border-gray-200 text-gray-700 hover:border-red-300' ?>">
+                    <i class="fa-solid fa-tag text-xs <?= $saleOnly ? 'text-white' : 'text-red-400' ?>"></i>
+                    Sale
+                </a>
+
                 <!-- Price filter -->
                 <div class="relative flex-1 sm:flex-none">
                     <button type="button" id="priceFilterBtn"
@@ -294,6 +312,7 @@ $sortLabels = [
                                     value="<?= $activeSubId ?>"><?php endif; ?>
                             <?php if ($sort !== 'newest'): ?><input type="hidden" name="sort"
                                     value="<?= htmlspecialchars($sort) ?>"><?php endif; ?>
+                            <?php if ($saleOnly): ?><input type="hidden" name="sale" value="1"><?php endif; ?>
 
                             <p class="hidden sm:block text-xs font-semibold text-gray-500 uppercase tracking-wide">Price
                                 range</p>
@@ -338,6 +357,7 @@ $sortLabels = [
                             value="<?= htmlspecialchars($minPrice) ?>"><?php endif; ?>
                     <?php if ($maxPrice !== null): ?><input type="hidden" name="maxp"
                             value="<?= htmlspecialchars($maxPrice) ?>"><?php endif; ?>
+                    <?php if ($saleOnly): ?><input type="hidden" name="sale" value="1"><?php endif; ?>
                     <select name="sort" onchange="this.form.submit()"
                         class="appearance-none text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg pl-3.5 pr-8 py-2.5 sm:py-2 w-full sm:w-auto hover:border-amber-400 transition-colors cursor-pointer focus:outline-none focus:border-amber-400">
                         <?php foreach ($sortLabels as $key => $label): ?>
@@ -353,6 +373,16 @@ $sortLabels = [
         <!-- Active filter chips -->
         <?php if ($hasActiveFilters): ?>
             <div class="flex flex-wrap items-center gap-2 mb-6">
+                <?php if ($saleOnly): ?>
+                    <span
+                        class="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full pl-3 pr-1.5 py-1">
+                        On Sale
+                        <a href="<?= buildUrl(['sale' => '']) ?>"
+                            class="w-4 h-4 flex items-center justify-center rounded-full hover:bg-red-200 transition-colors">
+                            <i class="fa-solid fa-xmark text-[9px]"></i>
+                        </a>
+                    </span>
+                <?php endif; ?>
                 <?php if ($minPrice !== null || $maxPrice !== null): ?>
                     <span
                         class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-full pl-3 pr-1.5 py-1">
@@ -374,7 +404,7 @@ $sortLabels = [
                         </a>
                     </span>
                 <?php endif; ?>
-                <a href="<?= buildUrl(['sort' => '', 'minp' => '', 'maxp' => '']) ?>"
+                <a href="<?= buildUrl(['sort' => '', 'minp' => '', 'maxp' => '', 'sale' => '']) ?>"
                     class="text-xs font-medium text-gray-400 hover:text-gray-600 underline underline-offset-2">
                     Clear all
                 </a>
@@ -388,7 +418,7 @@ $sortLabels = [
                 <p class="text-lg text-gray-500 font-medium">No products found</p>
                 <p class="text-sm mt-1">Try adjusting your filters or select "All".</p>
                 <?php if ($hasActiveFilters || $activeSubId): ?>
-                    <a href="<?= buildUrl(['sub' => '', 'sort' => '', 'minp' => '', 'maxp' => '']) ?>"
+                    <a href="<?= buildUrl(['sub' => '', 'sort' => '', 'minp' => '', 'maxp' => '', 'sale' => '']) ?>"
                         class="inline-block mt-4 text-sm font-semibold text-amber-600 hover:text-amber-700">
                         Clear filters <i class="fa-solid fa-arrow-right text-xs ml-1"></i>
                     </a>
@@ -398,11 +428,17 @@ $sortLabels = [
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-5">
                 <?php foreach ($products as $p): ?>
                     <?php $isNew = !empty($p['created_at']) && (strtotime($p['created_at']) >= strtotime('-14 days')); ?>
+                    <?php $isSale = !empty($p['max_discount']) && $p['max_discount'] > 0; ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>"
                         class="group bg-white rounded-xl md:rounded-2xl overflow-hidden border border-gray-100
                           block hover:shadow-lg hover:border-amber-200 hover:-translate-y-0.5 transition-all duration-300 relative">
 
-                        <?php if ($isNew): ?>
+                        <?php if ($isSale): ?>
+                            <span
+                                class="absolute top-2 left-2 z-10 bg-red-500 text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow-sm">
+                                -<?= rtrim(rtrim(number_format($p['max_discount'], 2), '0'), '.') ?>%
+                            </span>
+                        <?php elseif ($isNew): ?>
                             <span
                                 class="absolute top-2 left-2 z-10 bg-amber-500 text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow-sm">
                                 New
@@ -433,12 +469,22 @@ $sortLabels = [
                                 </p>
                             <?php endif; ?>
 
-                            <div class="mt-1 md:mt-2 flex items-baseline gap-0.5">
+                            <div class="mt-1 md:mt-2 flex items-baseline gap-1.5 flex-wrap">
                                 <?php
                                 $min = floatval($p['min_price'] ?? 0);
                                 $max = floatval($p['max_price'] ?? 0);
                                 ?>
-                                <?php if ($min > 0 || $max > 0): ?>
+                                <?php if ($isSale): ?>
+                                    <span class="text-[10px] md:text-sm font-semibold text-red-500">
+                                        ₱<?= number_format($p['min_discounted_price'], 2) ?>
+                                        <?= $p['min_discounted_price'] !== $p['max_discounted_price']
+                                            ? ' – ₱' . number_format($p['max_discounted_price'], 2)
+                                            : '' ?>
+                                    </span>
+                                    <span class="text-[9px] md:text-xs text-gray-400 line-through">
+                                        ₱<?= number_format($min, 2) ?><?= $min !== $max ? ' – ₱' . number_format($max, 2) : '' ?>
+                                    </span>
+                                <?php elseif ($min > 0 || $max > 0): ?>
                                     <span class="text-[10px] md:text-sm font-semibold text-gray-900">
                                         ₱<?= number_format($min, 2) ?>
                                         <?= $min !== $max ? ' – ₱' . number_format($max, 2) : '' ?>

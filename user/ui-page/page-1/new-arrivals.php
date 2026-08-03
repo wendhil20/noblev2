@@ -34,7 +34,7 @@ while ($row = $newResult->fetch_assoc())
             <h2 class="text-xs md:text-lg font-bold text-gray-900 whitespace-nowrap">
                 NEW <span class="text-emerald-500">ARRIVALS</span>
             </h2>
-           <span class="h-px w-16 md:w-32 bg-gradient-to-r from-emerald-300 to-transparent"></span>
+            <span class="h-px w-16 md:w-32 bg-linear-to-r from-emerald-300 to-transparent"></span>
         </div>
     </div>
 
@@ -62,9 +62,8 @@ while ($row = $newResult->fetch_assoc())
 
         <!-- Track: native horizontal scroll + snap. Fast/native feel on touch, JS-assisted arrows on desktop -->
         <div class="overflow-hidden px-1 p-2">
-            <div id="newArrivalTrack"
-                class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
-                       [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1">
+            <div id="newArrivalTrack" class="flex gap-2 md:gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory
+                       [-ms-overflow-style:none] scrollbar-none [&::-webkit-scrollbar]:hidden p-1">
                 <?php foreach ($newArrivals as $p): ?>
                     <a href="<?= BASE_URL ?>/mainproductview?id=<?= $p['id'] ?>" class=" rounded-xl md:rounded-2xl overflow-hidden 
                       block hover:shadow-lg transition-shadow duration-300 shrink-0 relative snap-start

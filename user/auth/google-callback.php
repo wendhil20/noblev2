@@ -1,6 +1,6 @@
 <?php
 // user/auth/google-callback.php
-// Step 2: Google redirects back here with ?code= — process login
+// Step 2: Google redirects back here with ?code= — process login (popup-based)
 
 require_once ROOT_PATH . '/user/auth/google-client.php';
 require_once ROOT_PATH . '/network/connect.php';
@@ -10,9 +10,33 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+function closePopupAndNotifyOpener(string $type, string $message = ''): void
+{
+    $fallbackUrl = BASE_URL . ($type === 'google-login-error' ? '?login_error=1' : '');
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head><title>Signing you in…</title></head>
+    <body>
+        <script>
+            (function () {
+                var payload = { type: <?= json_encode($type) ?>, message: <?= json_encode($message) ?> };
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage(payload, window.location.origin);
+                    window.close();
+                } else {
+                    window.location.href = <?= json_encode($fallbackUrl) ?>;
+                }
+            })();
+        </script>
+    </body>
+    </html>
+    <?php
+}
+
 // ─── Guard: must have ?code ───────────────────────────────────────────────────
 if (empty($_GET['code'])) {
-    header('Location: ' . BASE_URL . '?login_error=1');
+    closePopupAndNotifyOpener('google-login-error', 'Missing authorization code.');
     exit;
 }
 
@@ -63,9 +87,10 @@ try {
     $_SESSION['user_email']  = $email;
     $_SESSION['user_avatar'] = $avatar;
 
-    header('Location: ' . BASE_URL);
+    closePopupAndNotifyOpener('google-login-success');
     exit;
 
 } catch (Exception $e) {
-    die('OAuth Error: ' . $e->getMessage());
+    closePopupAndNotifyOpener('google-login-error', $e->getMessage());
+    exit;
 }

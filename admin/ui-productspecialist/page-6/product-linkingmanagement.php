@@ -61,7 +61,7 @@ while ($row = $linkResult->fetch_assoc()) {
     <div class="ml-60 min-h-screen bg-slate-100 flex">
 
         <!-- Sidebar filters -->
-        <aside class="w-64 flex-shrink-0 bg-white border-r border-slate-200 p-5 min-h-screen">
+        <aside class="w-64 shrink-0 bg-white border-r border-slate-200 p-5 min-h-screen">
             <div class="flex items-center justify-between mb-4">
                 <p class="text-xs font-bold text-slate-800 tracking-widest">TARGET SUBCATEGORIES</p>
                 <button type="button" onclick="clearSubSelection()"

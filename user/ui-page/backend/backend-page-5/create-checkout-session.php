@@ -6,6 +6,7 @@ $userId = intval($_SESSION['user_id']);
 
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
+include ROOT_PATH . '/user/ui-page/backend/backend-page-5/helper/stock-reserve-helper.php';
 
 $raw = file_get_contents('php://input');
 $body = json_decode($raw, true);
@@ -24,31 +25,12 @@ if (!$contactName || !$contactEmail || !$contactPhone || !$method) {
     exit;
 }
 
-// ── 1. Quick stock check ──────────────────────────────────────────────────────
-$stockCheck = $conn->prepare("SELECT id, stock FROM nobleproductvariant WHERE id = ?");
-foreach ($cartItems as $item) {
-    $vId = intval($item['variant_id']);
-    $qty = intval($item['quantity']);
-
-    $stockCheck->bind_param("i", $vId);
-    $stockCheck->execute();
-    $row = $stockCheck->get_result()->fetch_assoc();
-
-    if (!$row || intval($row['stock']) < $qty) {
-        $itemLabel = $item['product_name']
-            . ($item['colorname'] ? ' — ' . $item['colorname'] : '')
-            . ($item['sizename'] ? ' / ' . $item['sizename'] : '');
-
-        echo json_encode([
-            'ok' => false,
-            'error' => 'Sorry, "' . $itemLabel . '" no longer has enough stock.',
-            'out_of_stock' => true,
-            'variant_id' => $vId,
-        ]);
-        exit;
-    }
+// ── 1. Atomically reserve stock ───────────────────────────────────────────────
+[$reserved, $errorPayload] = reserveStockForCartItems($conn, $cartItems);
+if (!$reserved) {
+    echo json_encode($errorPayload);
+    exit;
 }
-$stockCheck->close();
 
 // ── 2. Compute final total ────────────────────────────────────────────────────
 $finalGrand = round($grandTotal + $deliveryFee, 2);
@@ -97,7 +79,7 @@ if ($addressId > 0) {
     }
 }
 
-// ── 5. Save pending order to DB ───────────────────────────────────────────────
+// ── 5. Save pending order to DB (stock already reserved above) ───────────────
 $cartJson = json_encode($cartItems);
 
 $ins = $conn->prepare("
@@ -110,8 +92,8 @@ $ins = $conn->prepare("
        truck_id, truck_name, truck_max_vol, truck_max_wt,
        distance_km, delivery_fee,
        subtotal, vat_amount, grand_total,
-       cart_items_json)
-    VALUES (?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,  ?,?,?,?,  ?,?,  ?,?,?,  ?)
+       cart_items_json, stock_reserved, reserved_at)
+    VALUES (?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,  ?,?,?,?,  ?,?,  ?,?,?,  ?, 1, NOW())
 ");
 
 $typeStr = 'i' // user_id
@@ -163,6 +145,9 @@ $ins->bind_param(
     $cartJson
 );
 if (!$ins->execute()) {
+    // Insert failed — release the stock we reserved above
+    restoreStockForCartItems($conn, $cartItems);
+
     echo json_encode(['ok' => false, 'error' => 'Failed to save pending order: ' . $ins->error]);
     exit;
 }
@@ -173,7 +158,7 @@ $ins->close();
 // ── 6. Create PayMongo Checkout Session ───────────────────────────────────────
 $secretKey = $_ENV['PAYMONGO_SECRET_KEY'] ?? getenv('PAYMONGO_SECRET_KEY');
 $successUrl = BASE_URL . '/success';
-$cancelUrl = BASE_URL . '/checkout';
+$cancelUrl = BASE_URL . '/checkoutcancel?pending=' . $pendingOrderId;
 
 $payload = [
     'data' => [
@@ -219,8 +204,9 @@ curl_close($ch);
 
 $pmData = json_decode($response, true);
 
-// ── 7. If PayMongo fails, delete the pending order ────────────────────────────
+// ── 7. If PayMongo fails, delete the pending order + restore stock ───────────
 if ($httpStatus !== 200 || empty($pmData['data']['id'])) {
+    restoreStockForPendingOrder($conn, $pendingOrderId);
     $conn->query("DELETE FROM noblependingorder WHERE id = " . intval($pendingOrderId));
 
     echo json_encode([

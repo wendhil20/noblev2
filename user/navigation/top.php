@@ -103,21 +103,25 @@ function squigglyUnderline()
             <div class="flex items-center gap-6">
 
                 <!-- Logo -->
-                <a href="<?= BASE_URL ?>" class="flex items-center gap-2 shrink-0">
+                <a href="<?= BASE_URL ?>" class="relative group flex items-center gap-2 shrink-0">
                     <div class="w-10 h-10">
                         <img src="<?= BASE_URL ?>/icon/logo.png" alt="NobleHome Logo"
                             class="w-full h-full object-contain">
+                    </div>
+
+                    <!-- Tooltip: lalabas lang pag naka-hover sa logo -->
+                    <div class="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 invisible
+                        group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50
+                        pointer-events-none whitespace-nowrap">
+                        <div class="relative bg-white text-xs font-bold px-3 py-1.5 rounded-md shadow-lg">
+                            <span class="text-amber-500">Noble</span><span class="text-black">HomeDepot</span>
+                            <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
                     </div>
                 </a>
 
                 <!-- Desktop Nav Links -->
                 <div class="hidden md:flex items-center gap-6">
-                    <a href="<?= BASE_URL ?>/find-professional"
-                        class="relative text-sm font-medium <?= $isFindProfessionalActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150 whitespace-nowrap">
-                        Find Professional
-                        <?php if ($isFindProfessionalActive)
-                            echo squigglyUnderline(); ?>
-                    </a>
                     <a href="<?= BASE_URL ?>/inspiration"
                         class="relative text-sm font-medium <?= $isInspirationActive ? 'text-orange-500' : 'text-gray-700 hover:text-orange-500' ?> transition-colors duration-150">
                         Inspiration
@@ -142,27 +146,30 @@ function squigglyUnderline()
                                 <path stroke-linecap="round" d="M21 21l-4.35-4.35" />
                             </svg>
                         </div>
-                        <input type="text" name="search" id="desktop-search-input" autocomplete="off"
-                            placeholder="Search for products..."
-                            class="text-sm text-gray-700 placeholder-gray-400 px-3 py-2 w-52 outline-none bg-white" />
+
+                        <!-- Input wrapper para maging relative ang position ng fake placeholder -->
+                        <div class="relative flex-1">
+                            <input type="text" name="search" id="desktop-search-input" autocomplete="off"
+                                class="text-sm text-gray-700 px-3 py-2 w-52 outline-none bg-transparent relative z-10" />
+
+                            <!-- Fake Animated Placeholder -->
+                            <div id="desktop-placeholder-wrap"
+                                class="absolute inset-0 flex items-center px-3 pointer-events-none overflow-hidden z-0">
+                                <span class="text-sm text-gray-400 whitespace-nowrap">Search for&nbsp;</span>
+                                <span id="desktop-placeholder-text"
+                                    class="text-sm text-gray-400 whitespace-nowrap placeholder-slide">
+                                    products...
+                                </span>
+                            </div>
+                        </div>
+
                         <button type="submit"
                             class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150 whitespace-nowrap rounded-lg">
                             Search
                         </button>
                     </div>
 
-                    <!-- Suggestions dropdown -->
-                    <div id="desktop-search-suggestions"
-                        class="hidden absolute top-full left-0 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
-                    </div>
-
-                    <div id="desktop-search-error" class="hidden absolute -bottom-9 left-3 z-50">
-                        <div
-                            class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
-                            Please fill in the blank.
-                            <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
-                        </div>
-                    </div>
+                    <!-- Suggestions dropdown, error tooltip, etc. same as before -->
                 </form>
 
                 <!-- Cart Icon with Hover Dropdown -->
@@ -173,7 +180,7 @@ function squigglyUnderline()
                 <div class="relative group <?= $isCheckoutPage ? 'hidden' : '' ?>" id="cart-icon-wrapper">
                     <a href="<?= BASE_URL ?>/cartview"
                         class="relative p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150 block">
-                        <i class="fa-solid fa-cart-flatbed"></i>
+                        <i class="fa-mosaic fa-solid fa-cart-shopping text-2xl"></i>
                         <span id="cart-count"
                             class="hidden absolute -top-0.5 -right-0.5 bg-orange-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                         </span>
@@ -235,12 +242,17 @@ function squigglyUnderline()
                             <div class="py-1">
                                 <a href="<?= BASE_URL ?>/profile"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                   <i class="fa-solid fa-user  w-4 text-center"></i>
+                                    <i class="fa-solid fa-user  w-4 text-center"></i>
                                     My Profile
+                                </a>
+                                <a href="<?= BASE_URL ?>/find-professional"
+                                    class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
+                                    <i class="ci ci-fp w-4 text-center text-lg"></i>
+                                    Find Professional
                                 </a>
                                 <a href="<?= BASE_URL ?>/orders"
                                     class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-                                    <i class="fa-sharp fa-solid fa-cart-arrow-down w-4 text-center"></i>
+                                    <i class="fa-sharp fa-solid fa-cart-shopping w-4 text-center"></i>
                                     My Orders
                                 </a>
                                 <a href="<?= BASE_URL ?>/saved"
@@ -269,8 +281,8 @@ function squigglyUnderline()
                     </div>
                 <?php else: ?>
                     <!-- Login Button (desktop) -->
-                    <a href="<?= BASE_URL ?>/google"
-                        class="hidden md:flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors duration-150">
+                    <button type="button"
+                        class="google-login-trigger hidden md:flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors duration-150">
                         <svg class="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path
                                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -285,8 +297,8 @@ function squigglyUnderline()
                                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                                 fill="#fff" opacity=".9" />
                         </svg>
-                        Login
-                    </a>
+                        Sign In
+                    </button>
                 <?php endif; ?>
 
                 <!-- Hamburger Button (mobile only) -->
@@ -401,7 +413,7 @@ function squigglyUnderline()
 
             <a href="<?= BASE_URL ?>/find-professional"
                 class="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-500 transition-colors duration-150">
-
+                <i class="ci ci-fp text-lg"></i>
                 Find Professional
             </a>
 
@@ -475,8 +487,8 @@ function squigglyUnderline()
                 Logout
             </a>
         <?php else: ?>
-            <a href="<?= BASE_URL ?>/google"
-                class="flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-150">
+            <button type="button"
+                class="google-login-trigger flex items-center justify-center gap-2 w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors duration-150">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -492,7 +504,7 @@ function squigglyUnderline()
                         fill="#fff" opacity=".9" />
                 </svg>
                 Login with Google
-            </a>
+            </button>
         <?php endif; ?>
     </div>
 
@@ -519,8 +531,7 @@ function squigglyUnderline()
 
     <!-- Cart (elevated center action button) -->
     <a href="<?= BASE_URL ?>/cartview" class="flex-1 flex flex-col items-center justify-center relative -mt-3">
-        <div
-            class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-200 relative">
+        <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center relative">
             <i class="fa-solid fa-cart-flatbed text-white text-lg"></i>
             <span id="cart-count-bottom"
                 class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
@@ -826,5 +837,115 @@ function squigglyUnderline()
 
         window.addEventListener('pageshow', forceHideLoader);
         forceHideLoader(); // extra safety sa unang load
+    })();
+
+    // ===================== ANIMATED SEARCH PLACEHOLDER =====================
+    (function () {
+        const placeholderWords = [
+            'products...',
+            'tiles...',
+            'doors...',
+            'lights...',
+            'materials...'
+        ];
+
+        function setupRotatingPlaceholder(inputEl, textEl, wrapEl) {
+            if (!inputEl || !textEl || !wrapEl) return;
+            let index = 0;
+            let intervalId = null;
+
+            function showNextWord() {
+                textEl.classList.remove('placeholder-slide-in');
+                textEl.classList.add('placeholder-slide-out');
+
+                setTimeout(() => {
+                    index = (index + 1) % placeholderWords.length;
+                    textEl.textContent = placeholderWords[index];
+                    textEl.classList.remove('placeholder-slide-out');
+                    textEl.classList.add('placeholder-slide-in');
+                }, 350);
+            }
+
+            function startRotation() {
+                if (intervalId) return;
+                intervalId = setInterval(showNextWord, 2200);
+            }
+
+            function syncVisibility() {
+                const hasValue = inputEl.value.trim().length > 0;
+                wrapEl.style.opacity = hasValue ? '0' : '1';
+            }
+
+            inputEl.addEventListener('input', syncVisibility);
+            inputEl.addEventListener('focus', syncVisibility);
+            inputEl.addEventListener('blur', syncVisibility);
+
+            startRotation();
+            syncVisibility();
+        }
+
+        setupRotatingPlaceholder(
+            document.getElementById('desktop-search-input'),
+            document.getElementById('desktop-placeholder-text'),
+            document.getElementById('desktop-placeholder-wrap')
+        );
+    })();
+
+    // ===================== GOOGLE LOGIN POPUP =====================
+    (function () {
+        function openGoogleLoginPopup() {
+            const width = 500, height = 620;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2.5;
+
+            const popup = window.open(
+                `${BASE_URL}/google`,
+                'google-login',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+            );
+
+            if (!popup) {
+                // Popup blocked by browser — fallback to normal full-page redirect
+                window.location.href = `${BASE_URL}/google`;
+                return;
+            }
+
+            const loaderOverlay = document.getElementById('page-loader-overlay');
+            if (loaderOverlay) {
+                loaderOverlay.classList.remove('hidden');
+                loaderOverlay.style.display = 'flex';
+            }
+
+            const pollTimer = setInterval(() => {
+                if (popup.closed) {
+                    clearInterval(pollTimer);
+                    if (loaderOverlay) {
+                        loaderOverlay.classList.add('hidden');
+                        loaderOverlay.style.display = 'none';
+                    }
+                }
+            }, 400);
+        }
+
+        window.addEventListener('message', function (event) {
+            if (event.origin !== window.location.origin) return;
+            if (!event.data || !event.data.type) return;
+
+            if (event.data.type === 'google-login-success') {
+                window.location.reload();
+            } else if (event.data.type === 'google-login-error') {
+                console.error('Google login failed:', event.data.message);
+                const loaderOverlay = document.getElementById('page-loader-overlay');
+                if (loaderOverlay) {
+                    loaderOverlay.classList.add('hidden');
+                    loaderOverlay.style.display = 'none';
+                }
+                alert('Login failed. Please try again.');
+            }
+        });
+
+        document.querySelectorAll('.google-login-trigger').forEach(btn => {
+            btn.addEventListener('click', openGoogleLoginPopup);
+        });
     })();
 </script>

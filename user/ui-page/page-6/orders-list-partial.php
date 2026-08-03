@@ -2,12 +2,10 @@
 // user/ui-page/page-6/orders-list-partial.php
 
 // Simple products (walang totoong color/size) ay naka-store gamit ang
-// placeholder na "Default" color + "Default" size
-// (see specialist-insertproduct-handler.php + cartview.php). Wala itong
-// value sa user kaya pinapalitan na lang natin ng em dash sa order details
-// table, kagaya ng ginagawa na kapag talagang wala/null ang value.
+
 if (!function_exists('displayVariantValue')) {
-    function displayVariantValue($value) {
+    function displayVariantValue($value)
+    {
         $value = trim((string) ($value ?? ''));
         if ($value === '' || $value === 'Default') {
             return '—';
@@ -23,7 +21,8 @@ if (!function_exists('displayVariantValue')) {
 <?php else: ?>
 
     <!-- Filter tabs -->
-    <div id="statusTabs" class="sticky top-0 bg-gray-50 z-20 flex items-center gap-1 mb-4 overflow-x-auto border-b border-gray-100">
+    <div id="statusTabs"
+        class="sticky top-0 bg-gray-50 z-20 flex items-center gap-1 mb-4 overflow-x-auto border-b border-gray-100">
         <button type="button" data-tab="all"
             class="status-tab flex-shrink-0 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors border-indigo-500 text-indigo-600">
             All
@@ -38,7 +37,9 @@ if (!function_exists('displayVariantValue')) {
 
     <div id="ordersListWrapper" class="relative">
         <!-- Fade overlay sa itaas — nagbibigay ng visual cue na scrollable ang list -->
-        <div class="pointer-events-none absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-white to-transparent z-10 rounded-t-lg"></div>
+        <div
+            class="pointer-events-none absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-white to-transparent z-10 rounded-t-lg">
+        </div>
 
         <div id="ordersList"
             class="bg-white rounded-lg border border-gray-100 divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
@@ -49,14 +50,12 @@ if (!function_exists('displayVariantValue')) {
 
                 <!-- Clickable row — bumubukas ng modal imbes na inline dropdown -->
                 <div class="order-row cursor-pointer flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50/80 transition-colors"
-                    data-order-id="<?= (int) $order['id'] ?>"
-                    data-status="<?= htmlspecialchars($order['payment_status']) ?>"
+                    data-order-id="<?= (int) $order['id'] ?>" data-status="<?= htmlspecialchars($order['payment_status']) ?>"
                     data-search="<?= htmlspecialchars($searchBlob, ENT_QUOTES) ?>"
                     onclick="openOrderModal(<?= (int) $order['id'] ?>)">
 
                     <div class="flex flex-col min-w-0">
-                        <a href="<?= BASE_URL ?>/order-details?order_id=<?= $order['id'] ?>"
-                            onclick="event.stopPropagation()"
+                        <a href="<?= BASE_URL ?>/order-details?order_id=<?= $order['id'] ?>" onclick="event.stopPropagation()"
                             class="text-sm font-medium text-gray-900 hover:text-indigo-600 truncate">
                             <?= htmlspecialchars($order['nhccreference'] ?: $order['id']) ?>
                         </a>
@@ -112,11 +111,15 @@ if (!function_exists('displayVariantValue')) {
                                     <?php foreach ($order['items'] as $item): ?>
                                         <tr>
                                             <td class="py-2 px-3 text-gray-800"><?= htmlspecialchars($item['product_name']) ?></td>
-                                            <td class="py-2 px-3 text-gray-500"><?= displayVariantValue($item['colorname'] ?? null) ?></td>
-                                            <td class="py-2 px-3 text-gray-500"><?= displayVariantValue($item['sizename'] ?? null) ?></td>
+                                            <td class="py-2 px-3 text-gray-500">
+                                                <?= displayVariantValue($item['colorname'] ?? null) ?></td>
+                                            <td class="py-2 px-3 text-gray-500">
+                                                <?= displayVariantValue($item['sizename'] ?? null) ?></td>
                                             <td class="py-2 px-3 text-center text-gray-500"><?= (int) $item['quantity'] ?></td>
-                                            <td class="py-2 px-3 text-right text-gray-500 tabular-nums">₱<?= number_format($item['unit_price'], 2) ?></td>
-                                            <td class="py-2 px-3 text-right font-medium text-gray-900 tabular-nums">₱<?= number_format($item['line_total'], 2) ?></td>
+                                            <td class="py-2 px-3 text-right text-gray-500 tabular-nums">
+                                                ₱<?= number_format($item['unit_price'], 2) ?></td>
+                                            <td class="py-2 px-3 text-right font-medium text-gray-900 tabular-nums">
+                                                ₱<?= number_format($item['line_total'], 2) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -136,7 +139,8 @@ if (!function_exists('displayVariantValue')) {
                                 <span>Delivery fee</span>
                                 <span class="tabular-nums">₱<?= number_format($order['delivery_fee'], 2) ?></span>
                             </div>
-                            <div class="flex justify-between w-full sm:w-52 text-sm font-semibold text-gray-900 pt-1 mt-1 border-t border-gray-100">
+                            <div
+                                class="flex justify-between w-full sm:w-52 text-sm font-semibold text-gray-900 pt-1 mt-1 border-t border-gray-100">
                                 <span>Total</span>
                                 <span class="tabular-nums">₱<?= number_format($order['grand_total'], 2) ?></span>
                             </div>

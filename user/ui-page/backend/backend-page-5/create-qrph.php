@@ -11,62 +11,48 @@ $userId = intval($_SESSION['user_id']);
 
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/user/ui-page/backend/backend-page-5/checkout-data.php';
+include ROOT_PATH . '/user/ui-page/backend/backend-page-5/helper/stock-reserve-helper.php';
 
 $raw = file_get_contents('php://input');
 $body = json_decode($raw, true);
 
-$contactName  = trim($body['contact_name']  ?? '');
+$contactName = trim($body['contact_name'] ?? '');
 $contactEmail = trim($body['contact_email'] ?? '');
 $contactPhone = trim($body['contact_phone'] ?? '');
-$addressId    = intval($body['address_id']  ?? 0);
-$method       = in_array($body['method'] ?? '', ['pickup', 'delivery']) ? $body['method'] : null;
-$truckId      = intval($body['truck_id']    ?? 0);
-$deliveryFee  = floatval($body['delivery_fee'] ?? 0);
-$distanceKm   = floatval($body['distance_km']  ?? 0);
+$addressId = intval($body['address_id'] ?? 0);
+$method = in_array($body['method'] ?? '', ['pickup', 'delivery']) ? $body['method'] : null;
+$truckId = intval($body['truck_id'] ?? 0);
+$deliveryFee = floatval($body['delivery_fee'] ?? 0);
+$distanceKm = floatval($body['distance_km'] ?? 0);
 
 if (!$contactName || !$contactEmail || !$contactPhone || !$method) {
     echo json_encode(['ok' => false, 'error' => 'Missing required fields']);
     exit;
 }
 
-// ── 1. Quick stock check ──────────────────────────────────────────────────────
-$stockCheck = $conn->prepare("SELECT id, stock FROM nobleproductvariant WHERE id = ?");
-foreach ($cartItems as $item) {
-    $vId = intval($item['variant_id']);
-    $qty = intval($item['quantity']);
-
-    $stockCheck->bind_param("i", $vId);
-    $stockCheck->execute();
-    $row = $stockCheck->get_result()->fetch_assoc();
-
-    if (!$row || intval($row['stock']) < $qty) {
-        $itemLabel = $item['product_name']
-            . ($item['colorname'] ? ' — ' . $item['colorname'] : '')
-            . ($item['sizename']  ? ' / '  . $item['sizename']  : '');
-
-        echo json_encode([
-            'ok'           => false,
-            'error'        => 'Sorry, "' . $itemLabel . '" no longer has enough stock.',
-            'out_of_stock' => true,
-            'variant_id'   => $vId,
-        ]);
-        exit;
-    }
+// ── 1. Atomically reserve stock ───────────────────────────────────────────────
+[$reserved, $errorPayload] = reserveStockForCartItems($conn, $cartItems);
+if (!$reserved) {
+    echo json_encode($errorPayload);
+    exit;
 }
-$stockCheck->close();
 
 // ── 2. Compute final total ────────────────────────────────────────────────────
-$finalGrand     = round($grandTotal + $deliveryFee, 2);
+$finalGrand = round($grandTotal + $deliveryFee, 2);
 $amountCentavos = intval(round($finalGrand * 100));
 
 // PayMongo minimum amount is ₱20.00 (2000 centavos)
 if ($amountCentavos < 100) {
+    // Below minimum — release the reservation before rejecting
+    restoreStockForCartItems($conn, $cartItems);
     echo json_encode(['ok' => false, 'error' => 'Order total is below the minimum payable amount (₱20.00).']);
     exit;
 }
 
 // ── 3. Truck snapshot ─────────────────────────────────────────────────────────
-$truckName = null; $truckMaxVol = 0.0; $truckMaxWt = 0.0;
+$truckName = null;
+$truckMaxVol = 0.0;
+$truckMaxWt = 0.0;
 if ($truckId > 0) {
     $s = $conn->prepare("SELECT nametruck, trucktype, maxcubicmeter, maxweightcapacity FROM nobletrucklist WHERE id = ?");
     $s->bind_param("i", $truckId);
@@ -74,15 +60,16 @@ if ($truckId > 0) {
     $t = $s->get_result()->fetch_assoc();
     $s->close();
     if ($t) {
-        $truckName   = ucfirst($t['nametruck']) . ' — ' . $t['trucktype'];
+        $truckName = ucfirst($t['nametruck']) . ' — ' . $t['trucktype'];
         $truckMaxVol = floatval($t['maxcubicmeter']);
-        $truckMaxWt  = floatval($t['maxweightcapacity']);
+        $truckMaxWt = floatval($t['maxweightcapacity']);
     }
 }
 
 // ── 4. Address snapshot ───────────────────────────────────────────────────────
 $addrFull = $addrBarangay = $addrCity = $addrPostal = null;
-$addrLat  = 0.0; $addrLng = 0.0;
+$addrLat = 0.0;
+$addrLng = 0.0;
 if ($addressId > 0) {
     $s = $conn->prepare("
         SELECT address, barangay, city, postalcode, latitude, longitude
@@ -94,18 +81,18 @@ if ($addressId > 0) {
     $row = $s->get_result()->fetch_assoc();
     $s->close();
     if ($row) {
-        $addrFull     = $row['address'];
+        $addrFull = $row['address'];
         $addrBarangay = $row['barangay'];
-        $addrCity     = $row['city'];
-        $addrPostal   = $row['postalcode'];
-        $addrLat      = floatval($row['latitude']);
-        $addrLng      = floatval($row['longitude']);
+        $addrCity = $row['city'];
+        $addrPostal = $row['postalcode'];
+        $addrLat = floatval($row['latitude']);
+        $addrLng = floatval($row['longitude']);
     }
 }
 
-// ── 5. Save pending order ─────────────────────────────────────────────────────
+// ── 5. Save pending order (stock already reserved above) ─────────────────────
 $cartJson = json_encode($cartItems);
-$paymentType = 'qrph'; // ← FIX: explicitly mark this pending order as a QR Ph payment
+$paymentType = 'qrph';
 
 $ins = $conn->prepare("
     INSERT INTO noblependingorder
@@ -117,8 +104,8 @@ $ins = $conn->prepare("
        truck_id, truck_name, truck_max_vol, truck_max_wt,
        distance_km, delivery_fee,
        subtotal, vat_amount, grand_total,
-       cart_items_json, payment_type)
-    VALUES (?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,  ?,?,?,?,  ?,?,  ?,?,?,  ?,?)
+       cart_items_json, payment_type, stock_reserved, reserved_at)
+    VALUES (?,?,?,?,  ?,?,?,?,?,  ?,?,  ?,  ?,?,?,?,  ?,?,  ?,?,?,  ?,?, 1, NOW())
 ");
 
 $typeStr = 'i'   // user_id
@@ -143,7 +130,7 @@ $typeStr = 'i'   // user_id
     . 'd'        // vat_amount
     . 'd'        // grand_total
     . 's'        // cart_items_json
-    . 's';       // payment_type ← FIX: added type for new column
+    . 's';       // payment_type
 
 $ins->bind_param(
     $typeStr,
@@ -169,10 +156,13 @@ $ins->bind_param(
     $vatAmount,
     $finalGrand,
     $cartJson,
-    $paymentType // ← FIX: bind the new value
+    $paymentType
 );
 
 if (!$ins->execute()) {
+    // Insert failed — release the stock we reserved above
+    restoreStockForCartItems($conn, $cartItems);
+
     echo json_encode(['ok' => false, 'error' => 'Failed to save pending order: ' . $ins->error]);
     exit;
 }
@@ -180,33 +170,32 @@ $pendingOrderId = $conn->insert_id;
 $ins->close();
 
 // ── 6. Create PayMongo Checkout Session — QR Ph only ──────────────────────────
-$secretKey  = $_ENV['PAYMONGO_SECRET_KEY'] ?? getenv('PAYMONGO_SECRET_KEY');
+$secretKey = $_ENV['PAYMONGO_SECRET_KEY'] ?? getenv('PAYMONGO_SECRET_KEY');
 $successUrl = BASE_URL . '/success';
-$cancelUrl  = BASE_URL . '/checkout';
+$cancelUrl = BASE_URL . '/checkoutcancel?pending=' . $pendingOrderId;
 
 $payload = [
     'data' => [
         'attributes' => [
-            'amount'   => $amountCentavos,
+            'amount' => $amountCentavos,
             'currency' => 'PHP',
             'line_items' => [
                 [
-                    'name'        => 'NobleHome Order',
-                    'quantity'    => 1,
-                    'amount'      => $amountCentavos,
-                    'currency'    => 'PHP',
+                    'name' => 'NobleHome Order',
+                    'quantity' => 1,
+                    'amount' => $amountCentavos,
+                    'currency' => 'PHP',
                     'description' => 'Subtotal: ₱' . number_format($subtotal, 2)
                         . ' + VAT: ₱' . number_format($vatAmount, 2)
                         . ($deliveryFee > 0 ? ' + Delivery: ₱' . number_format($deliveryFee, 2) : ''),
                 ]
             ],
-            // Limited to QR Ph only — PayMongo's hosted page generates/shows the QR itself
             'payment_method_types' => ['qrph'],
             'success_url' => $successUrl,
-            'cancel_url'  => $cancelUrl,
+            'cancel_url' => $cancelUrl,
             'description' => 'NobleHome Order',
             'metadata' => [
-                'user_id'          => strval($userId),
+                'user_id' => strval($userId),
                 'pending_order_id' => strval($pendingOrderId),
             ],
         ],
@@ -223,25 +212,26 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-$response   = curl_exec($ch);
+$response = curl_exec($ch);
 $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 $pmData = json_decode($response, true);
 
-// ── 7. If PayMongo fails, roll back the pending order ─────────────────────────
+// ── 7. If PayMongo fails, roll back the pending order + restore stock ────────
 if ($httpStatus !== 200 || empty($pmData['data']['id'])) {
+    restoreStockForPendingOrder($conn, $pendingOrderId);
     $conn->query("DELETE FROM noblependingorder WHERE id = " . intval($pendingOrderId));
 
     echo json_encode([
-        'ok'    => false,
+        'ok' => false,
         'error' => 'PayMongo error: ' . ($pmData['errors'][0]['detail'] ?? 'Unknown error'),
     ]);
     exit;
 }
 
 // ── 8. Save PayMongo session ID ───────────────────────────────────────────────
-$sessionId  = $pmData['data']['id'];
+$sessionId = $pmData['data']['id'];
 $sessionUrl = $pmData['data']['attributes']['checkout_url'];
 
 $upd = $conn->prepare("UPDATE noblependingorder SET paymongo_session_id = ? WHERE id = ?");
@@ -251,12 +241,7 @@ $upd->close();
 
 // ── 9. Return checkout URL — frontend redirects here ──────────────────────────
 echo json_encode([
-    'ok'           => true,
+    'ok' => true,
     'checkout_url' => $sessionUrl,
 ]);
 exit;
-
-
-
-
-
