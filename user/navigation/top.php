@@ -135,11 +135,9 @@ function squigglyUnderline()
             <!-- Right: Search + Icons + Hamburger -->
             <div class="flex items-center gap-2">
 
-                <!-- Desktop Search Bar -->
                 <form action="<?= BASE_URL ?>/shop" method="GET" class="hidden lg:block relative"
                     id="desktop-search-form">
-                    <div
-                        class="flex items-center p-1 rounded-lg border border-gray-100 overflow-hidden focus-within:ring-1 focus-within:ring-orange-400 focus-within:border-orange-400 transition-all duration-150">
+                    <div class="flex items-stretch rounded-md overflow-hidden border border-gray-200">
                         <div class="flex items-center pl-3 text-gray-400">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <circle cx="11" cy="11" r="8" />
@@ -147,12 +145,10 @@ function squigglyUnderline()
                             </svg>
                         </div>
 
-                        <!-- Input wrapper para maging relative ang position ng fake placeholder -->
                         <div class="relative flex-1">
                             <input type="text" name="search" id="desktop-search-input" autocomplete="off"
-                                class="text-sm text-gray-700 px-3 py-2 w-52 outline-none bg-transparent relative z-10" />
+                                class="text-sm text-gray-700 px-3 py-2 w-52 h-full outline-none bg-transparent relative z-10" />
 
-                            <!-- Fake Animated Placeholder -->
                             <div id="desktop-placeholder-wrap"
                                 class="absolute inset-0 flex items-center px-3 pointer-events-none overflow-hidden z-0">
                                 <span class="text-sm text-gray-400 whitespace-nowrap">Search for&nbsp;</span>
@@ -164,12 +160,24 @@ function squigglyUnderline()
                         </div>
 
                         <button type="submit"
-                            class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 transition-colors duration-150 whitespace-nowrap rounded-lg">
+                            class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 transition-colors duration-150 whitespace-nowrap">
                             Search
                         </button>
                     </div>
 
-                    <!-- Suggestions dropdown, error tooltip, etc. same as before -->
+                    <!-- ✅ IDINAGDAG: Suggestions dropdown -->
+                    <div id="desktop-search-suggestions"
+                        class="hidden absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-100 z-50 max-h-80 overflow-y-auto">
+                    </div>
+
+                    <!-- ✅ IDINAGDAG: Error tooltip (kasi ginagamit rin ito sa JS mo) -->
+                    <div id="desktop-search-error" class="hidden absolute top-full left-4 mt-1 z-50">
+                        <div
+                            class="relative bg-gray-800 text-white text-xs px-3 py-1.5 rounded-md shadow-lg whitespace-nowrap">
+                            Please fill in the blank.
+                            <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 rotate-45"></div>
+                        </div>
+                    </div>
                 </form>
 
                 <!-- Cart Icon with Hover Dropdown -->
@@ -179,11 +187,15 @@ function squigglyUnderline()
                 ?>
                 <div class="relative group <?= $isCheckoutPage ? 'hidden' : '' ?>" id="cart-icon-wrapper">
                     <a href="<?= BASE_URL ?>/cartview"
-                        class="relative p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150 block">
-                        <i class="fa-mosaic fa-solid fa-cart-shopping text-2xl"></i>
-                        <span id="cart-count"
-                            class="hidden absolute -top-0.5 -right-0.5 bg-orange-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        class="group relative flex items-center justify-center gap-1.5 p-2 text-gray-600 hover:text-orange-500 transition-colors duration-150">
+                        <span class="relative inline-flex">
+                            <i class="fa-mosaic fa-solid fa-cart-shopping text-lg"></i>
+                            <span id="cart-count"
+                                class="hidden absolute -top-2 -right-2 bg-orange-500 text-white text-[10px] font-bold w-3 h-3 rounded-full flex items-center justify-center">
+                            </span>
                         </span>
+                        <span
+                            class="text-sm font-bold text-black group-hover:text-orange-500 transition-colors duration-150">Cart</span>
                     </a>
 
                     <?php if ($isLoggedIn): ?>
@@ -282,21 +294,8 @@ function squigglyUnderline()
                 <?php else: ?>
                     <!-- Login Button (desktop) -->
                     <button type="button"
-                        class="google-login-trigger hidden md:flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-md transition-colors duration-150">
-                        <svg class="w-4 h-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                                fill="#fff" opacity=".9" />
-                            <path
-                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                                fill="#fff" opacity=".9" />
-                            <path
-                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-                                fill="#fff" opacity=".9" />
-                            <path
-                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                                fill="#fff" opacity=".9" />
-                        </svg>
+                        class="google-login-trigger hidden md:flex items-center gap-2 text-black text-sm font-bold hover:underline rounded-md transition-colors duration-150">
+                        <i class="fa-solid fa-user text-gray-600 text-lg"></i>
                         Sign In
                     </button>
                 <?php endif; ?>
@@ -353,6 +352,9 @@ function squigglyUnderline()
         </div>
     </div>
 </div>
+
+<div id="search-suggest-backdrop" class="hidden fixed inset-0 bg-black/40 z-30"></div>
+
 <div id="mobile-search-backdrop" class="hidden fixed inset-0 bg-black/40 z-[65] md:hidden"></div>
 
 <!-- ===================== MOBILE SIDEBAR ===================== -->
@@ -652,6 +654,22 @@ function squigglyUnderline()
 
     (function () {
         const searchSuggestUrl = '<?= BASE_URL ?>/search-suggest';
+        const suggestBackdrop = document.getElementById('search-suggest-backdrop');
+
+        // Track kung alin sa mga dropdown ang currently open, para hindi
+        // masarhan ng isa yung backdrop na ginagamit pa ng isa.
+        const openDropdowns = new Set();
+
+        function showSuggestBackdrop(dropdownEl) {
+            openDropdowns.add(dropdownEl);
+            if (suggestBackdrop) suggestBackdrop.classList.remove('hidden');
+        }
+        function hideSuggestBackdrop(dropdownEl) {
+            openDropdowns.delete(dropdownEl);
+            if (openDropdowns.size === 0 && suggestBackdrop) {
+                suggestBackdrop.classList.add('hidden');
+            }
+        }
 
         function formatPrice(num) {
             return parseFloat(num).toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -661,6 +679,7 @@ function squigglyUnderline()
             if (!suggestions || suggestions.length === 0) {
                 dropdown.innerHTML = '<p class="px-4 py-3 text-xs text-gray-400">No matching products.</p>';
                 dropdown.classList.remove('hidden');
+                showSuggestBackdrop(dropdown);
                 return;
             }
             dropdown.innerHTML = suggestions.map(item => `
@@ -680,6 +699,7 @@ function squigglyUnderline()
             </a>
         `).join('');
             dropdown.classList.remove('hidden');
+            showSuggestBackdrop(dropdown);
         }
 
         function attachSearchBox(inputEl, dropdownEl) {
@@ -694,6 +714,7 @@ function squigglyUnderline()
                 if (q.length < 2) {
                     dropdownEl.classList.add('hidden');
                     dropdownEl.innerHTML = '';
+                    hideSuggestBackdrop(dropdownEl);
                     return;
                 }
 
@@ -707,7 +728,10 @@ function squigglyUnderline()
                         const data = await res.json();
                         renderSuggestions(dropdownEl, data.suggestions);
                     } catch (e) {
-                        if (e.name !== 'AbortError') dropdownEl.classList.add('hidden');
+                        if (e.name !== 'AbortError') {
+                            dropdownEl.classList.add('hidden');
+                            hideSuggestBackdrop(dropdownEl);
+                        }
                     }
                 }, 250);
             });
@@ -715,13 +739,26 @@ function squigglyUnderline()
             inputEl.addEventListener('focus', function () {
                 if (inputEl.value.trim().length >= 2 && dropdownEl.innerHTML !== '') {
                     dropdownEl.classList.remove('hidden');
+                    showSuggestBackdrop(dropdownEl);
                 }
             });
 
             document.addEventListener('click', function (e) {
                 if (!dropdownEl.contains(e.target) && e.target !== inputEl) {
                     dropdownEl.classList.add('hidden');
+                    hideSuggestBackdrop(dropdownEl);
                 }
+            });
+        }
+
+        // Click sa backdrop mismo = close lahat ng bukas na dropdown
+        if (suggestBackdrop) {
+            suggestBackdrop.addEventListener('click', function () {
+                document.querySelectorAll('#desktop-search-suggestions, #mobile-search-suggestions').forEach(d => {
+                    d.classList.add('hidden');
+                    openDropdowns.delete(d);
+                });
+                suggestBackdrop.classList.add('hidden');
             });
         }
 

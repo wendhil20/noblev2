@@ -5,8 +5,8 @@
 include ROOT_PATH . '/network/connect.php';
 include ROOT_PATH . '/user/ui-page/backend/backend-page-5/helper/stock-reserve-helper.php';
 
-// Consider a pending order "abandoned" if reserved more than 20 minutes ago
-$cutoffSeconds = 10;
+// Consider a pending order "abandoned" if reserved more than 5 minutes ago
+$cutoffSeconds = 300;
 
 $s = $conn->prepare("
     SELECT id
