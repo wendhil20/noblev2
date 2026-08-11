@@ -16,6 +16,7 @@ $promoResult = $conn->query("
 while ($row = $promoResult->fetch_assoc())
     $promotions[] = $row;
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -135,7 +136,7 @@ while ($row = $promoResult->fetch_assoc())
                         </div>
                         <h3 class="text-xs md:text-sm font-bold text-gray-900 mb-1">Support Services</h3>
                         <p class="text-[10px] md:text-xs text-gray-400 leading-relaxed">
-                            Monday - Friday 8:00 AM - 5:00 PM · Saturday 8:00 AM - 12:00 PM
+                            Monday - Friday 7:00 AM - 5:00 PM · Saturday 8:00 AM - 12:00 PM
                         </p>
                     </div>
 
